@@ -1,0 +1,348 @@
+:root {
+    --bg-color: #203030;
+    --panel-bg: rgba(48, 64, 64, 0.8);
+    --accent-green: #42f485;
+    --frame-grey: #d1d1d1; /* The light grey thin frame */
+    --text-main: #f0f0f0;
+}
+
+body {
+    background-color: var(--bg-color);
+    color: var(--text-main);
+    font-family: 'Calibri', sans-serif;
+    margin: 0;
+    padding: 20px;
+    display: flex;
+    justify-content: center;
+}
+
+/* The Main Encompassing Frame */
+.outer-frame {
+    border: 1px solid var(--frame-grey);
+    padding: 10px 15px;
+    width: 98vw;    /* Use more screen width */
+    max-width: 1600px;
+    background: rgba(0,0,0,0.1);
+    position: relative;
+    margin: 0 auto;
+}
+
+/* Flex container for the three main elements */
+.duel-stage {
+    display: flex;
+    align-items: flex-start; /* Make boxes equal height */
+    gap: 10px;            /* Tighter gap */
+    margin-bottom: 20px;
+}
+
+/* Player Box - Indented toward the middle */
+.player-box {
+    flex: 0 0 200px;         /* Slightly narrower to "bunch" more */
+    background: var(--panel-bg);
+    border: 1px solid rgba(255,255,255,0.1);
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start; /* Pushes content to the top */
+    gap: 5px;
+    overflow: hidden;
+}
+
+/* Specific Indentation: P1 pushes right, P2 pushes left */
+.p1-box { margin-left: 0%; }
+.p2-box { margin-right: 0%; }
+
+.glyph-preview-container {
+    display: flex;
+    justify-content: center; /* Keeps the whole unit centered in the column */
+    align-items: center;
+    gap: 8px;
+    width: 100%;            /* Constraints it to the player-box width */
+    margin: 10px 0;
+    box-sizing: border-box;
+}
+
+.glyph-canvas {
+    position: relative;
+    width: 120px;
+    height: 120px;
+    margin: 0 auto 5px auto; /* Centered with small bottom margin */
+    background: #111;
+    border: 1px solid var(--frame-grey);
+    box-shadow: 3px 3px 10px rgba(0,0,0,0.5);
+    flex-shrink: 0;          /* Prevents squishing */
+}
+
+.glyph-stats {
+    display: flex;
+    flex-direction: column;
+    font-family: 'Courier New', monospace;
+    font-size: 0.55rem;     /* Slightly smaller to ensure fit */
+    color: var(--frame-grey);
+    min-width: 70px;
+    flex-shrink: 0;         /* Prevents text from squishing */
+}
+
+.p1-layout .glyph-stats { text-align: right; }
+.p2-layout .glyph-stats { text-align: left; }
+
+.stat-item {
+    margin: 2px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+.glyph-specs span {
+    font-weight: bold;
+    display: inline;
+    color: var(--text-main);
+    margin-left: 0px;
+}
+
+/* Arena remains central */
+.arena-container {
+    flex: 1; 
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+canvas#canvasA {
+    width: 100%;
+    background: #000;
+    border: 1px solid rgba(255,255,255,0.05);
+}
+
+/* UI Readouts */
+.stat-line {
+    font-family: 'Courier New', monospace;
+    font-size: 0.75rem;      /* Slightly smaller text */
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    padding: 2px 0;
+    display: flex;
+    justify-content: space-between;
+}
+
+#gamestatus {
+    text-align: center;
+    color: var(--accent-green);
+    font-family: 'Courier New', monospace;
+    font-size: 0.8rem;
+    margin-bottom: 0px;
+    text-transform: uppercase;
+}
+
+.hash-readout h2 {
+    font-size: 1.1rem;
+    margin-bottom: 10px !important;
+    width: 100%;
+}
+
+/* Modal Background Overlay */
+.modal-overlay {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(5px);
+    display: none; /* Hidden by default */
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+/* The Selection Window */
+.modal-window {
+    background: var(--panel-bg);
+    border: 1px solid var(--frame-grey);
+    width: 80%;
+    max-width: 800px;
+    max-height: 80vh;
+    padding: 30px;
+    overflow-y: auto;
+    color: var(--text-main);
+}
+
+.glyph-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.glyph-row:hover {
+    background: rgba(66, 244, 133, 0.2);
+}
+
+.load-btn {
+    font-size: 0.6rem;
+    background: none;
+    border: 1px solid var(--accent-green);
+    color: var(--accent-green);
+    padding: 2px 5px;
+    cursor: pointer;
+    vertical-align: middle;
+}
+
+.analytics-tab {
+    width: 100%;
+    margin-top: 20px;
+}
+
+.analytics-tab canvas {
+    width: 100%;       /* Match arena width */
+    height: 120px;     /* Set a fixed visual height */
+    background: #000;
+    border: 1px solid rgba(255,255,255,0.05);
+    display: block;
+    margin-bottom: 10px;
+}
+
+.analytics-tab h3 {
+    font-family: 'Courier New', monospace;
+    font-size: 0.7rem;
+    color: var(--frame-grey);
+    margin: 10px 0 5px 0;
+    text-align: left;
+    letter-spacing: 1px;
+}
+
+.cell-profile-container {
+    width: 100%;
+    height: 30px; /* Thin vertical axis */
+    background: rgba(0,0,0,0.3);
+    border: 1px solid rgba(255,255,255,0.05);
+}
+
+.profile-label {
+    font-family: 'Courier New', monospace;
+    font-size: 0.5rem;
+    color: var(--frame-grey);
+    text-transform: uppercase;
+    margin-top: 12px;
+}
+
+/* Add this to your styles.css */
+#start-match-btn {
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    cursor: pointer;
+}
+
+#start-match-btn:hover {
+    background: rgba(66, 244, 133, 0.1);
+    box-shadow: 0 0 15px var(--accent-green);
+    color: white;
+}
+
+/* Optional: Make it pulse until clicked */
+.pulse-green {
+    animation: pulse-animation 2s infinite;
+}
+
+@keyframes pulse-animation {
+    0% { box-shadow: 0 0 0 0px rgba(66, 244, 133, 0.4); }
+    100% { box-shadow: 0 0 0 10px rgba(66, 244, 133, 0); }
+}
+
+.round-opt.selected {
+    border-color: var(--accent-green) !important;
+    color: var(--accent-green) !important;
+    background: rgba(66, 244, 133, 0.1);
+}
+
+#modal-canvas-container {
+    position: relative; /* This is the anchor */
+    width: 100%;
+    height: 80vh;       /* Use viewport height to ensure there's actual space */
+    margin: 0 auto;
+    overflow: visible;  /* Prevent clipping if radius is large */
+}
+
+.modal-glyph-canvas {
+    position: absolute;
+    border: 1px solid rgba(66, 244, 133, 0.3);
+    border-radius: 50%;
+    transform: translate(-50%, -50%); /* Center the canvas on its coordinates */
+    background: rgba(0,0,0,0.5);
+    animation: glyph-pulse 2s infinite ease-in-out;
+}
+
+@keyframes glyph-pulse {
+    0% { box-shadow: 0 0 10px rgba(66, 244, 133, 0.2); }
+    50% { box-shadow: 0 0 25px rgba(66, 244, 133, 0.5); }
+    100% { box-shadow: 0 0 10px rgba(66, 244, 133, 0.2); }
+}
+
+.modal-glyph-label {
+    position: absolute;
+    transform: translate(65px, -50%); 
+    color: #fff;
+    font-family: 'Courier New', monospace;
+    pointer-events: none;
+    background: rgba(0, 0, 0, 0.75);
+    padding: 6px 12px;
+    border-left: 3px solid var(--accent-green);
+    /* Set a display type that stacks children */
+    display: flex;
+    flex-direction: column; 
+    gap: 2px;
+    z-index: 1001;
+    min-width: 120px;
+}
+
+.modal-glyph-label h3 {
+    margin: 0;
+    font-size: 14px;
+    color: var(--accent-green);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.modal-glyph-stats {
+    display: flex;
+    gap: 8px; /* Spacing between abbreviated items */
+    font-size: 10px;
+    color: #aaa;
+    border-top: 1px solid rgba(255,255,255,0.1);
+    padding-top: 2px;
+}
+
+.stat-val {
+    color: #fff;
+    font-weight: bold;
+}
+
+#tournament-modal .start-btn {
+    background: transparent;
+    border: 1px solid var(--accent-green);
+    color: var(--accent-green);
+    padding: 12px 40px;
+    font-family: 'Courier New', monospace;
+    font-size: 1.2rem;
+    font-weight: bold;
+    letter-spacing: 4px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    margin-top: 30px;
+    box-shadow: 0 0 10px rgba(66, 244, 133, 0.2);
+}
+
+#tournament-modal .start-btn:hover {
+    background: var(--accent-green);
+    color: #000;
+    box-shadow: 0 0 25px var(--accent-green);
+    transform: scale(1.05);
+}
+
+/* Position the button at the bottom of the modal content */
+.modal-content {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 40px;
+}
