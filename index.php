@@ -28,7 +28,7 @@ $glyphs = $stmt->fetchAll();
         
         <div class="header-left" style="display: flex; flex-direction: column; text-align: left; width: 250px; font-size: 0.9rem; color: var(--frame-grey);">
             <div style="font-size: 0.65rem;">
-                Round <span id="current-round-display" style="color: white;">0</span>/<span id="total-rounds-display">?</span>
+                Round <span id="current-round-display" style="color: white;">-</span>/<span id="total-rounds-display">-</span>
             </div>
             <div style="font-size: 0.65rem;">
                 Seed: <span id="round-seed" style="color: white;">-</span>
@@ -220,8 +220,13 @@ $glyphs = $stmt->fetchAll();
     <script>
 
         let unit1, unit2, arena;
+
         let duelInterval;
         let frameDelay = 50;
+
+        let totalRounds = 4;
+        let currentRound = 1;
+        let matchScore = { p1: 0, p2: 0 };
 
         window.onload = function() {
             initializeUnits(16); // Initialize with a default 16x16 grid
@@ -254,6 +259,9 @@ $glyphs = $stmt->fetchAll();
 
             unit1.loadFromBinary(mockBinary1);
             unit2.loadFromBinary(mockBinary2);
+
+            unit1.lastLoadedBin = unit1.getBinaryString();
+            unit2.lastLoadedBin = unit2.getBinaryString();
 
         }
 
@@ -303,11 +311,14 @@ $glyphs = $stmt->fetchAll();
             // 3. Generate a new repeat value for this match
             const repeatValue = Math.floor(Math.random() * 1000000);
             arena.setSeed(repeatValue);
-            document.getElementById("round-seed").innerText = repeatValue;            
-            console.log("Match Seed: " + repeatValue);
+            document.getElementById("round-seed").innerText = repeatValue;  
+            document.getElementById("total-rounds-display").innerText = totalRounds;          
+            //console.log("Match Seed: " + repeatValue);
 
-            // 4. Stop any existing intervals
-            if (duelInterval) clearInterval(duelInterval);            
+            // 4. Stop any existing intervals and reset Glyphs to their starting configuration
+            if (duelInterval) clearInterval(duelInterval);
+            unit1.resetToOrigin(unit1.lastLoadedBin); 
+            unit2.resetToOrigin(unit2.lastLoadedBin);            
 
             // setTimeout(() => {}, 1000);
 
@@ -325,16 +336,33 @@ $glyphs = $stmt->fetchAll();
                 document.getElementById('iteration2').innerText = unit2.iteration;
                 document.getElementById('currentHash2').innerText = "0x" + unit2.currentHash.substring(0, 16) + "...";
 
+                document.getElementById('current-round-display').innerText = currentRound;
+                document.getElementById('gamestatus').innerText = `ROUND ${currentRound} IN PROGRESS...`;
+
                 if (!p1Active) { document.getElementById('iteration1').style.color = "#ff4444"; }
                 if (!p2Active) { document.getElementById('iteration2').style.color = "#ff4444"; }   
                 
                 // STOP CONDITION: The round is over once both Glyphs have reaced their respective halting state
                 if (!unit1.isActive && !unit2.isActive) {
                     clearInterval(duelInterval);
-                    document.getElementById('gamestatus').innerText = "DUEL OVER";
                     
                     // Optional: Run one last render to show the final state
                     arena.render(unit1.intrinsicColor, unit2.intrinsicColor);
+
+                    calcScore();
+
+                    if (currentRound < totalRounds) {
+                        document.getElementById('gamestatus').innerText = `ROUND ${currentRound} COMPLETE - WAITING...`;
+                        currentRound++;
+
+                        let waitBetweenRounds = 3000;
+                        setTimeout(runDuel, waitBetweenRounds);
+                    } else {
+                        document.getElementById('gamestatus').innerText = "MATCH COMPLETE";
+                        currentRound = 1; // Reset for next time button is clicked
+                    }
+
+                    return;
 
                 }
 
@@ -350,6 +378,9 @@ $glyphs = $stmt->fetchAll();
 
                 // 4. Render the Arena (the Charge Field)
                 arena.render(unit1.intrinsicColor, unit2.intrinsicColor);
+                const score = arena.calculateScore();
+                document.getElementById('points1').innerText = score.p1;
+                document.getElementById('points2').innerText = score.p2;
 
             }, frameDelay);
 
