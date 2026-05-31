@@ -16,9 +16,17 @@ function resetUI(level){
 
     if (level == "1"){
 
-        if (arena){ arena.reset(); }
         document.getElementById("iteration1").style.color = "#ffffff";
         document.getElementById("iteration2").style.color = "#ffffff";
+
+        if (arena){ arena.reset(); }
+
+        if (unifiedGraph) unifiedGraph.clear();
+        if (profile1) profile1.clear();
+        if (profile2) profile2.clear();
+        if (chargeHist1) chargeHist1.clear();
+        if (chargeHist2) chargeHist2.clear();
+
 
     }
 
@@ -114,6 +122,72 @@ function calcScore(){
     // Update Match UI
     document.getElementById('match-p1').innerText = matchScore.p1;
     document.getElementById('match-p2').innerText = matchScore.p2;
+
+}
+
+function instantiateAnalytics(){
+
+        if (!profile1) profile1 = new CellProfileGraph("cellProfile1", maxMatchLength);
+        if (!profile2) profile2 = new CellProfileGraph("cellProfile2", maxMatchLength);
+
+        profile1.canvas.width = profile1.canvas.offsetWidth;
+        profile2.canvas.width = profile2.canvas.offsetWidth;
+        profile1.canvas.height = 30;
+        profile2.canvas.height = 30;
+
+        if (!roundGraph1) roundGraph1 = new RoundHistoryGraph("roundHistory1", totalRounds);
+        if (!roundGraph2) roundGraph2 = new RoundHistoryGraph("roundHistory2", totalRounds);
+
+        roundGraph1.canvas.width = roundGraph1.canvas.offsetWidth;
+        roundGraph2.canvas.width = roundGraph2.canvas.offsetWidth;
+        roundGraph1.canvas.height = 30;
+        roundGraph2.canvas.height = 30;
+
+        if (!chargeHist1) chargeHist1 = new ChargeHistogram('chargeHistogram1');
+        if (!chargeHist2) chargeHist2 = new ChargeHistogram('chargeHistogram2');
+        
+        chargeHist1.canvas.width = chargeHist1.canvas.offsetWidth;
+        chargeHist2.canvas.width = chargeHist2.canvas.offsetWidth;
+        chargeHist1.canvas.height = 30;
+        chargeHist2.canvas.height = 30;
+
+        const chartWidth = document.getElementById('canvasA').offsetWidth;
+        if (!unifiedGraph) unifiedGraph = new AnalyticsEngine("unifiedChart", maxMatchLength);
+        unifiedGraph.canvas.width = chartWidth;
+        unifiedGraph.canvas.height = 200;
+
+}
+
+function renderAnalytics(){
+
+    unifiedGraph.record(score.p1, score.p2);
+    unifiedGraph.render(unit1.intrinsicColor, unit2.intrinsicColor);
+
+    const pop1 = unit1.getPopulationCount(); 
+    const pop2 = unit2.getPopulationCount();
+    profile1.record(pop1);
+    profile2.record(pop2);
+
+    // Find the highest population seen by either player so far
+    const globalPopMax = Math.max(
+        ...profile1.history.slice(5), 
+        ...profile2.history.slice(5), 
+        10
+    );
+
+    // 2. Calculate Global Max for Charge Histogram
+    const dist1 = chargeHist1.getDistribution(arena, 1);
+    const dist2 = chargeHist2.getDistribution(arena, 2);
+    globalChargePeak = Math.max(globalChargePeak, dist1.maxCount, dist2.maxCount);
+
+    profile1.render(unit1.intrinsicColor, globalPopMax);
+    profile2.render(unit2.intrinsicColor, globalPopMax);
+
+    if (roundGraph1) roundGraph1.render(unit1.intrinsicColor, score.p1);
+    if (roundGraph2) roundGraph2.render(unit2.intrinsicColor, score.p2);
+
+    chargeHist1.render(arena, 1, unit1.intrinsicColor, globalChargePeak);
+    chargeHist2.render(arena, 2, unit2.intrinsicColor, globalChargePeak);
 
 }
 

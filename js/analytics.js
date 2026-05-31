@@ -5,6 +5,7 @@ class AnalyticsEngine {
         this.maxIterations = maxIterations;
         this.history = []; 
         this.prevScore = { p1: 0, p2: 0 };
+        // console.log("[analytics.js] class Analytics Engine, constructor(" + canvasId + ", " + maxIterations + "): Done.");
     }
 
     record(p1, p2) {
@@ -154,6 +155,7 @@ class RoundHistoryGraph {
         this.totalRounds = totalRounds;
         this.history = []; // Array of scores for this player
         this.opponentHistory = []; // Needed to determine if we won the round
+        // console.log("[analytics.js] class RoundHistoryGraph constructor(" + canvasId + ", " + totalRounds + "): Done.");
     }
 
     record(myScore, opponentScore) {
@@ -162,17 +164,23 @@ class RoundHistoryGraph {
     }
 
     render(color, currentLiveScore) {
+        // console.log("[analytics.js] class RoundHistoryGraph render(" + color + ", " + currentLiveScore + "): Rendering...");
+
         const w = this.canvas.width;
         const h = this.canvas.height;
         const ctx = this.ctx;
         ctx.clearRect(0, 0, w, h);
 
-        if (this.history.length === 0) return;
+        if (this.history.length === 0 && !currentLiveScore) return;
 
         const stepX = w / this.totalRounds;
-        // Find max score across both players to normalize height
+        
+        // Find max score across both players to normalize height safely
         const maxScore = Math.max(...this.history, ...this.opponentHistory, 10);
-        const scaleY = (h - 10) / maxScore;
+        
+        const scaleY = (h - 5) / maxScore;
+
+        // console.log("[analytics.js] class RoundHistoryGraph render(): maxScore = " + maxScore + ", scaleY = " + scaleY);
 
         this.history.forEach((score, i) => {
             const x = i * stepX;
@@ -183,33 +191,45 @@ class RoundHistoryGraph {
             if (isWinner) {
                 ctx.fillStyle = color;
                 ctx.globalAlpha = 1.0;
-                // Add a "glow" highlight for the winner
+                
+                // Add an isolated "glow" highlight for the winner
                 ctx.shadowBlur = 10;
                 ctx.shadowColor = color;
             } else {
                 ctx.fillStyle = "#666"; // Dimmed grey for round loss
                 ctx.globalAlpha = 0.4;
+                
+                // 💡 FIX 02: Explicitly strip both blur context trackers 
+                // to prevent glowing halos from drawing on loss bars.
                 ctx.shadowBlur = 0;
+                ctx.shadowColor = "transparent";
             }
 
-            // Draw the round "pulse"
-            ctx.fillRect(x + 2, h - barHeight, stepX - 4, barHeight);
+            // Draw the round "pulse" 
+            // Math.max guarantees a 2px flatline bar is always visible even if the score is absolute 0
+            const finalBarH = Math.max(barHeight, 2);
+            ctx.fillRect(x + 2, h - finalBarH, stepX - 4, finalBarH);
         });
 
         // Draw a faint, pulsing bar for the round currently in progress
         if (this.history.length < this.totalRounds) {
             const x = this.history.length * stepX;
-            const liveBarHeight = currentLiveScore * scaleY; // Use the same dynamic scale
+            const liveBarHeight = currentLiveScore * scaleY;
             
-            ctx.shadowBlur = 0; // No glow for the ghost bar
+            // Clean state isolation reset for ghost/live tracking nodes
+            ctx.shadowBlur = 0; 
+            ctx.shadowColor = "transparent";
             ctx.fillStyle = color;
-            ctx.globalAlpha = 0.2; 
-            ctx.fillRect(x + 2, h - liveBarHeight, stepX - 4, liveBarHeight);
+            ctx.globalAlpha = 0.25; 
+            
+            const finalLiveH = Math.max(liveBarHeight, 2);
+            ctx.fillRect(x + 2, h - finalLiveH, stepX - 4, finalLiveH);
         }
 
-        // Reset state
+        // Final safe cleanup routine restoration
         ctx.globalAlpha = 1.0;
         ctx.shadowBlur = 0;
+        ctx.shadowColor = "transparent";
     }
 
     clear() {
