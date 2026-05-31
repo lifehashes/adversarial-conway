@@ -9,6 +9,8 @@ function resetUI(level){
         resetGlyph(2);
 
         if (arena){ arena.reset() };
+        clearAnalytics();
+        deleteAnalytics();
 
         matchScore = { p1: 0, p2: 0 };
 
@@ -20,13 +22,7 @@ function resetUI(level){
         document.getElementById("iteration2").style.color = "#ffffff";
 
         if (arena){ arena.reset(); }
-
-        if (unifiedGraph) unifiedGraph.clear();
-        if (profile1) profile1.clear();
-        if (profile2) profile2.clear();
-        if (chargeHist1) chargeHist1.clear();
-        if (chargeHist2) chargeHist2.clear();
-
+        clearAnalytics();
 
     }
 
@@ -83,6 +79,31 @@ function resetUI(level){
         document.getElementById(`iteration${unit}`).style.color = "#ffffff";
         document.getElementById(`originHash${unit}`).innerText = "0x...";
         document.getElementById(`currentHash${unit}`).innerText = "0x...";
+
+    }
+
+    function clearAnalytics(){
+
+        if (unifiedGraph) unifiedGraph.clear();
+        if (profile1) profile1.clear();
+        if (profile2) profile2.clear();
+        if (chargeHist1) chargeHist1.clear();
+        if (chargeHist2) chargeHist2.clear();
+
+    }
+
+    function deleteAnalytics(){
+
+        profile1 = null;
+        profile2 = null;
+
+        roundGraph1 = null;
+        roundGraph2 = null;
+
+        chargeHist1 = null;
+        chargeHist2 = null;
+
+        unifiedGraph = null;        
 
     }
 
