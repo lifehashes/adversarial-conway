@@ -319,6 +319,7 @@ $glyphs = $stmt->fetchAll();
 
         let totalRounds = 4;
         let currentRound = 1;
+        let score;
         let matchScore = { p1: 0, p2: 0 };
 
         let currentActiveMode = 'single'; // 'single' or 'tournament'
@@ -326,6 +327,13 @@ $glyphs = $stmt->fetchAll();
         let selectedTournamentN = 4;
         let activeTournamentPool = [];
         let TourneyHalleck = null; // the master of the revels overseeing the tournaments
+
+        let maxMatchLength, totalCells;
+        let globalChargePeak = 10;
+        let profile1, profile2;
+        let roundGraph1, roundGraph2;
+        let chargeHist1, chargeHist2;
+        let unifiedGraph;
         
         // Cache array built out of PHP payload pool objects for rapid dynamic filters
         const rawGlyphRegistry = [
@@ -428,21 +436,33 @@ $glyphs = $stmt->fetchAll();
             const arenaGridSize = 96; 
             arena = new ArenaEngine("canvasA", 600, 300, arenaGridSize);
 
-            // 3. Generate a new repeat value for this match
+            // 3a. Estimate spatial and temporal envelope of match
+            let gen1 = document.getElementById("spec-gen1").innerText;
+            let gen2 = document.getElementById("spec-gen2").innerText;
+            maxMatchLength = Math.max(parseInt(gen1), parseInt(gen2));
+            totalCells = arena.rows * arena.cols;
+
+            // 3b. Instantiate Analytics
+            instantiateAnalytics();
+
+            // 3c. Reset match round graph
+            if (currentRound === 1){ roundGraph1.clear(); roundGraph2.clear(); }
+
+            // 4. Generate a new repeat value for this match
             const repeatValue = Math.floor(Math.random() * 1000000);
             arena.setSeed(repeatValue);
             document.getElementById("round-seed").innerText = repeatValue;  
             document.getElementById("total-rounds-display").innerText = totalRounds;          
             //console.log("Match Seed: " + repeatValue);
 
-            // 4. Stop any existing intervals and reset Glyphs to their starting configuration
+            // 5. Stop any existing intervals and reset Glyphs to their starting configuration
             if (duelInterval) clearInterval(duelInterval);
             unit1.resetToOrigin(unit1.lastLoadedBin); 
             unit2.resetToOrigin(unit2.lastLoadedBin);            
 
             // setTimeout(() => {}, 1000);
 
-            // 5. Start the main simulation loop
+            // 6. Start the main simulation loop
             duelInterval = setInterval(() => {
 
                 // 1. Evolve the internal DNA of each Glyph
@@ -470,6 +490,8 @@ $glyphs = $stmt->fetchAll();
                     arena.render(unit1.intrinsicColor, unit2.intrinsicColor);
 
                     calcScore();
+                    roundGraph1.record(score.p1, score.p2);
+                    roundGraph2.record(score.p2, score.p1);
 
                     if (currentRound < totalRounds) {
                         document.getElementById('gamestatus').innerText = `ROUND ${currentRound} COMPLETE - WAITING...`;
@@ -482,6 +504,7 @@ $glyphs = $stmt->fetchAll();
                         currentRound = 1; // Reset for next time button is clicked
                     }
 
+                    renderAnalytics();
                     return;
 
                 }
@@ -498,9 +521,12 @@ $glyphs = $stmt->fetchAll();
 
                 // 4. Render the Arena (the Charge Field)
                 arena.render(unit1.intrinsicColor, unit2.intrinsicColor);
-                const score = arena.calculateScore();
+                score = arena.calculateScore();
                 document.getElementById('points1').innerText = score.p1;
                 document.getElementById('points2').innerText = score.p2;
+
+                // 5. Render Analytics
+                renderAnalytics();
 
             }, frameDelay);
 
