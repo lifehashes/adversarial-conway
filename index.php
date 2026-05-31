@@ -10,7 +10,7 @@ $glyphs = $stmt->fetchAll();
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HASHWAR ENGINE :: v200</title>
+    <title>HASHWAR ENGINE :: v220</title>
     <style></style>
     <link rel="stylesheet" href="styles.css">
     <SCRIPT SRC="js/control.js"></SCRIPT>

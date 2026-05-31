@@ -108,3 +108,75 @@ function calcScore(){
     document.getElementById('match-p2').innerText = matchScore.p2;
 
 }
+
+function openSelectionModal(playerNum) {
+    const modal = document.getElementById('selectionModal');
+    modal.style.display = 'flex';
+    // Store which player is currently selecting
+    modal.dataset.activePlayer = playerNum;
+    
+    // In the future, this is where you fetch from your PHP:
+    // fetch('get_glyphs.php').then(res => res.json()).then(populateModal);
+}
+
+function closeSelectionModal() {
+    document.getElementById('selectionModal').style.display = 'none';
+}  
+
+function selectGlyph(binString, name, stats, mode) {
+    // console.log("[index.php] selectGlyph(" + name +"): Binary has length " + binString.length);
+    const n = Math.sqrt(binString.length);
+    
+    if (Number.isInteger(n)) {
+        const playerNum = document.getElementById('selectionModal').dataset.activePlayer;
+        const targetUnit = (playerNum == 1) ? unit1 : unit2;
+        
+        // Re-initialize engine with new N if necessary
+        targetUnit.n = n;
+        targetUnit.loadFromBinary(binString);
+        targetUnit.lastLoadedBin = binString;
+        targetUnit.generations = parseInt(stats.gen);
+
+        document.getElementById(`spec-gen${playerNum}`).innerText = stats.gen;
+        document.getElementById(`spec-peak${playerNum}`).innerText = stats.peak;
+        document.getElementById(`spec-max${playerNum}`).innerText = stats.max;
+        document.getElementById(`spec-min${playerNum}`).innerText = stats.min;
+        
+        document.getElementById(`name${playerNum}`).innerText = name;
+        document.getElementById(`originHash${playerNum}`).innerText = "0x" + targetUnit.originHash.substring(0, 16) + "...";
+        closeSelectionModal();
+
+        // CHECK IF BOTH ARE READY
+        if (unit1.lastLoadedBin && unit2.lastLoadedBin && mode) {
+            setTimeout(openMatchModal, 500); // Slight delay for visual polish
+        }                        
+
+    } else {
+        alert("CRITICAL ERROR: Binary string is not a perfect square.");
+    }
+}
+
+function openMatchModal() {
+    document.getElementById('matchModal').style.display = 'flex';
+}
+
+function closeMatchModal() {
+    document.getElementById('matchModal').style.display = 'none';
+}
+
+function confirmAndStart() {
+    const matchName = document.getElementById('matchNameInput').value || "UNNAMED_ENGAGEMENT";
+    document.getElementById('gamestatus').innerText = "OP: " + matchName.toUpperCase();
+    closeMatchModal();
+    
+    runDuel();
+}
+
+function setTotalRounds(count, btn) {
+    totalRounds = count;
+    document.getElementById('total-rounds-display').innerText = count;
+
+    // UI highlight for selected button
+    document.querySelectorAll('.round-opt').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');        
+}
