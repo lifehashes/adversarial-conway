@@ -327,6 +327,9 @@ $glyphs = $stmt->fetchAll();
         let selectedTournamentN = 4;
         let activeTournamentPool = [];
         let TourneyHalleck = null; // the master of the revels overseeing the tournaments
+        let currentMatchIndex = 0;
+        let tourneyVisualizer;
+        let tourneyLeaderboard;
 
         let maxMatchLength, totalCells;
         let globalChargePeak = 10;
@@ -484,7 +487,8 @@ $glyphs = $stmt->fetchAll();
                 
                 // STOP CONDITION: The round is over once both Glyphs have reaced their respective halting state
                 if (!unit1.isActive && !unit2.isActive) {
-                    clearInterval(duelInterval); duelInterval = null;
+                    clearInterval(duelInterval); 
+                    duelInterval = null;
                     
                     // Optional: Run one last render to show the final state
                     arena.render(unit1.intrinsicColor, unit2.intrinsicColor);
@@ -500,8 +504,14 @@ $glyphs = $stmt->fetchAll();
                         let waitBetweenRounds = 3000;
                         setTimeout(simulateMatch, waitBetweenRounds);
                     } else {
-                        document.getElementById('gamestatus').innerText = "MATCH COMPLETE";
-                        currentRound = 1; // Reset for next time button is clicked
+                        if (currentActiveMode === 'tournament') {
+                            document.getElementById('gamestatus').innerText = `MATCH COMPLETE // STEPPING GRID...`;
+                            currentMatchIndex++;
+                            setTimeout(loadAndStartNextMatch, 4000);
+                        } else {
+                            document.getElementById('gamestatus').innerText = "MATCH COMPLETE";
+                            currentRound = 1; 
+                        }
                     }
 
                     renderAnalytics();
@@ -702,13 +712,34 @@ $glyphs = $stmt->fetchAll();
                 }
 
                 document.getElementById('unifiedConfigModal').style.display = 'none';
-                document.getElementById('gamestatus').innerText = `TOURNAMENT NETWORK STANDBY [N=${selectedTournamentN}]`;
                 
+                // Initialize the Tournament Manager globally
                 TourneyHalleck = new TournamentManager(activeTournamentPool);
-                const activeMatch = TourneyHalleck.getNextMatch();
-                if (activeMatch){ 
+                
+                // Reset our match index tracking pointer for a fresh start
+                currentMatchIndex = 0;
 
-                    console.log(activeMatch);
+                // Reset overall win/loss metrics in the control UI if desired
+                document.getElementById("rounds-won-p1").innerText = "0";
+                document.getElementById("rounds-won-p2").innerText = "0";
+
+                // Kick off the asynchronous tournament processor loop
+                loadAndStartNextMatch();
+            }
+        }
+
+        function loadAndStartNextMatch() {
+            const totalMatches = TourneyHalleck.matchQueue.length;
+
+            if (currentMatchIndex < totalMatches) {
+                // Explicitly sync the manager's index pointer with our loop pointer
+                TourneyHalleck.currentMatchIndex = currentMatchIndex;
+                const activeMatch = TourneyHalleck.getNextMatch();
+                resetUI(0);
+
+                if (activeMatch) {
+                    console.log(`[TOURNAMENT] Initializing Match ${currentMatchIndex + 1}/${totalMatches}:`, activeMatch);
+                    
                     unit1.loadFromBinary(activeMatch.p1.bin);
                     unit1.lastLoadedBin = activeMatch.p1.bin;
                     unit2.loadFromBinary(activeMatch.p2.bin);
@@ -716,15 +747,33 @@ $glyphs = $stmt->fetchAll();
 
                     document.getElementById('name1').innerText = activeMatch.p1.name;
                     document.getElementById('name2').innerText = activeMatch.p2.name;
+
+                    document.getElementById('spec-gen1').innerText = activeMatch.p1.gen;
+                    document.getElementById('spec-peak1').innerText = activeMatch.p1.peak;
+                    document.getElementById('spec-max1').innerText = activeMatch.p1.max;
+                    document.getElementById('spec-min1').innerText = activeMatch.p1.min;
+                    document.getElementById('originHash1').innerText = "0x" + activeMatch.p1.originHash.substring(0, 16) + "...";
+
+                    document.getElementById('spec-gen2').innerText = activeMatch.p2.gen;
+                    document.getElementById('spec-peak2').innerText = activeMatch.p2.peak;
+                    document.getElementById('spec-max2').innerText = activeMatch.p2.max;
+                    document.getElementById('spec-min2').innerText = activeMatch.p2.min;
+                    document.getElementById('originHash2').innerText = "0x" + activeMatch.p2.originHash.substring(0, 16) + "...";
                     
+                    // Clear round graph visuals before the first round of the new match begins
+                    if (roundGraph1) roundGraph1.clear();
+                    if (roundGraph2) roundGraph2.clear();
+
                     currentRound = 1;
-                    document.getElementById('gamestatus').innerText = `TOURNAMENT MATCH 1/${TourneyHalleck.matchQueue.length}`;
+                    document.getElementById('gamestatus').innerText = `TOURNAMENT MATCH ${currentMatchIndex + 1}/${totalMatches}`;
                     
                     simulateMatch(); 
                 } else {
-                    alert("TOURNAMENT COMPLETE OR ERROR GENERATING QUEUE");
+                    alert("ERROR GENERATING MATCH PAYLOAD");
                 }
-
+            } else {
+                document.getElementById('gamestatus').innerText = "TOURNAMENT COMPLETE";
+                alert("🏁 TOURNAMENT LOG COMPLETED: All queue pairings resolved.");
             }
         }
 
