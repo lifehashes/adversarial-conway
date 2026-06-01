@@ -13,11 +13,13 @@ class LifeEngine {
 
         this.originHash = "";
         this.currentHash = "";
-        this.intrinsicColor = "#42f485"; // Default green until hash is loaded
+        this.intrinsicColor = "#42f485";
 
         // Store all previous hashes to detect cycles
         this.history = new Set();
         this.isActive = true;
+
+        this.originBinary = null;
 
     }
 
@@ -30,7 +32,6 @@ class LifeEngine {
         return Array.from({ length: this.n }, () => Array(this.n).fill(0));
     }
 
-    // Fill the grid from your 256-bit binary string (or any length n*n)
     loadFromBinary(binaryString) {
         for (let i = 0; i < binaryString.length; i++) {
             const x = i % this.n;
@@ -49,6 +50,7 @@ class LifeEngine {
         this.history.clear();
         this.history.add(this.originHash);
         this.isActive = true;
+        this.originBinary = binaryString;
 
         this.render();
     }
@@ -125,7 +127,6 @@ class LifeEngine {
                     this.ctx.fillStyle = this.intrinsicColor;
                     this.ctx.fill();
                     
-                    // Optional: Add a slight glow effect to the circles
                     this.ctx.shadowBlur = 5;
                     this.ctx.shadowColor = this.intrinsicColor;
                 }
@@ -137,9 +138,7 @@ class LifeEngine {
 
     getPopulationCount() {
         let count = 0;
-        // Iterate through the rows
         for (let y = 0; y < this.n; y++) {
-            // Iterate through the columns
             for (let x = 0; x < this.n; x++) {
                 if (this.grid[y][x] === 1) count++;
             }
@@ -147,23 +146,11 @@ class LifeEngine {
         return count;
     }
 
-    resetToOrigin(binaryString) {
+    resetToOrigin() {
         this.iteration = 0;
         this.history.clear();
         this.isActive = true;
-        
-        // Reload the grid from the binary string we started with
-        for (let i = 0; i < binaryString.length; i++) {
-            const x = i % this.n;
-            const y = Math.floor(i / this.n);
-            if (y < this.n) {
-                this.grid[y][x] = parseInt(binaryString[i]);
-            }
-        }
-        
-        this.currentHash = this.originHash;
-        this.history.add(this.originHash);
-        this.render();
+        this.loadFromBinary(this.originBinary);
     }
 
 }
