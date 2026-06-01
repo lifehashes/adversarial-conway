@@ -2,9 +2,6 @@ class Match{
 
     constructor(glyphA, glyphB, designation, rounds, frameDelay){
 
-        this.glyphA = findGlyphByName(GlyphRegistry, glyphA);
-        this.glyphB = findGlyphByName(GlyphRegistry, glyphB);
-
         this.designation = designation;
         this.currentRound = 1;
         this.totalRounds = rounds;
@@ -14,22 +11,20 @@ class Match{
         this.algorithm = "Adversarial Conway";
         this.mode = "Combative"
 
-        // UI Updates
-        document.getElementById("matchID").innerText = this.designation;
-        document.getElementById("total-rounds-display").innerText = this.totalRounds;
-        document.getElementById("algo").innerText = this.algorithm;
-        document.getElementById("algo-mode").innerText = this.mode;
+        this.glyphA = this.findGlyphByName(GlyphRegistry, glyphA);
+        this.glyphB = this.findGlyphByName(GlyphRegistry, glyphB);
 
-        unit1.loadFromBinary(this.glyphA.bin);
-        unit2.loadFromBinary(this.glyphB.bin);
+        if (this.glyphA){ unit1.loadFromBinary(this.glyphA.bin); } else { console.log("[control.js] Match constructor(): Glyph '" + glyphA + "' not found!"); }
+        if (this.glyphB){ unit2.loadFromBinary(this.glyphB.bin); } else { console.log("[control.js] Match constructor(): Glyph '" + glyphB + "' not found!"); }      
 
-        // HELPER FUNCTION
-        function findGlyphByName(glyphArray, targetName) {
-            return glyphArray.find(glyph => {
-                return glyph.name.toLowerCase() === targetName.toLowerCase();
-            });
-        }
+        this.initUI();
 
+    }
+
+    findGlyphByName(glyphArray, targetName) {
+        return glyphArray.find(glyph => {
+            return glyph.name.toLowerCase() === targetName.toLowerCase();
+        });
     }
 
     run(){
@@ -89,7 +84,7 @@ class Match{
 
             arena.applyJitter();
 
-            // 2. "Project" the current DNA onto the Arena
+            // 2. Project ("stamp") the current Glyph configuration onto the Arena
             arena.stamp(unit1, 1);
             arena.stamp(unit2, 2);
 
@@ -97,7 +92,7 @@ class Match{
             unit1.render();
             unit2.render();
 
-            // 4. Render the Arena
+            // 4. Render the Arena with the updated projection
             arena.render(unit1.intrinsicColor, unit2.intrinsicColor);
             score = arena.calculateScore();
             document.getElementById('points1').innerText = score.p1;
@@ -107,6 +102,29 @@ class Match{
             // renderAnalytics();
 
         }, this.frameDelay);
+
+    }
+
+    initUI(){
+
+        document.getElementById("matchID").innerText = this.designation;
+        document.getElementById("total-rounds-display").innerText = this.totalRounds;
+        document.getElementById("algo").innerText = this.algorithm;
+        document.getElementById("algo-mode").innerText = this.mode;
+
+        document.getElementById("name1").innerText = this.glyphA.name;
+        document.getElementById("spec-gen1").innerText = this.glyphA.gen;
+        document.getElementById("spec-peak1").innerText = this.glyphA.peak;
+        document.getElementById("spec-max1").innerText = this.glyphA.max;
+        document.getElementById("spec-min1").innerText = this.glyphA.min;
+        document.getElementById("originHash1").innerText = "0x" + this.glyphA.originHash.substring(0, 16) + "...";
+
+        document.getElementById("name2").innerText = this.glyphB.name;
+        document.getElementById("spec-gen2").innerText = this.glyphB.gen;
+        document.getElementById("spec-peak2").innerText = this.glyphB.peak;
+        document.getElementById("spec-max2").innerText = this.glyphB.max;
+        document.getElementById("spec-min2").innerText = this.glyphB.min;
+        document.getElementById("originHash2").innerText = "0x" + this.glyphB.originHash.substring(0, 16) + "...";
 
     }
 
