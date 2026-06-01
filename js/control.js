@@ -5,6 +5,7 @@ class Match{
         this.designation = designation;
         this.currentRound = 1;
         this.totalRounds = rounds;
+        this.repeatValue = null;
 
         this.frameDelay = frameDelay;
 
@@ -19,6 +20,7 @@ class Match{
 
         this.matchScore = { p1: 0, p2: 0 };
         this.roundsWonByGlyph = { p1: 0, p2: 0 };
+        this.matchRoundData = [];
 
         this.initUI();
 
@@ -35,9 +37,9 @@ class Match{
         const arenaGridSize = 96; 
         arena = new ArenaEngine("canvasA", 600, 300, arenaGridSize); 
 
-        const repeatValue = Math.floor(Math.random() * 1000000);
-        arena.setSeed(repeatValue);
-        document.getElementById("round-seed").innerText = repeatValue;
+        this.repeatValue = Math.floor(Math.random() * 1000000);
+        arena.setSeed(this.repeatValue);
+        document.getElementById("round-seed").innerText = this.repeatValue;
 
         unit1.resetToOrigin();
         unit2.resetToOrigin();
@@ -74,6 +76,15 @@ class Match{
                 roundGraph1.record(score.p1, score.p2);
                 roundGraph2.record(score.p2, score.p1);
 
+                this.matchRoundData.push({
+                    round_number: this.currentRound,
+                    round_seed: this.repeatValue,
+                    p1_final_score: score.p1,
+                    p2_final_score: score.p2,
+                    total_iterations: maxMatchLength
+                });
+                // console.log("[control.js] Match.run(): this.matchRoundData = [" + this.matchRoundData + "].");
+
                 if (this.currentRound < this.totalRounds) {
                     document.getElementById('gamestatus').innerText = `ROUND ${this.currentRound} COMPLETE - WAITING...`;
                     this.currentRound++;
@@ -81,7 +92,9 @@ class Match{
                     let waitBetweenRounds = 3000;
                     setTimeout(() => { this.run(); }, waitBetweenRounds);
                 } else {
-                    document.getElementById('gamestatus').innerText = "MATCH COMPLETE";
+                    document.getElementById('gamestatus').innerText = "MATCH COMPLETE";                    
+                    this.saveMatchToDatabase();
+                    this.matchRoundData = [];
                 }
 
                 renderAnalytics();
@@ -178,6 +191,45 @@ class Match{
         document.getElementById('match-p1').innerText = this.matchScore.p1;
         document.getElementById('match-p2').innerText = this.matchScore.p2;
 
+    }
+
+    saveMatchToDatabase() {
+        const payload = {
+            tournament_id: (currentActiveMode === 'tournament') ? 1 : null, // Set context id if applicable
+            match_designation: this.designation.toUpperCase(),
+            p1_glyph_name: this.glyphA.name,
+            p2_glyph_name: this.glyphB.name,
+            grid_size: 16,
+            arena_width: 640,
+            arena_height: 320,
+            game_mode: this.mode,
+            total_rounds_configured: this.totalRounds,
+            p1_rounds_won: this.roundsWonByGlyph.p1,
+            p2_rounds_won: this.roundsWonByGlyph.p2,
+            rounds: this.matchRoundData
+        };
+
+        console.log("[DATABASE API] Dispatched payload packet:", payload);
+
+        // 2. Dispatch data packet asynchronously via HTTP POST straight to your target script endpoint
+        fetch('php/save_match.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload) // Convert the native javascript object into a clean JSON string stream
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                console.log(`%c[DATABASE API] SUCCESS: Saved match safely under ID ${data.match_id || 'N/A'}`, 'color: #00aa00;');
+            } else {
+                console.error("[DATABASE API] SERVER REJECTION:", data.error);
+            }
+        })
+        .catch(error => {
+            console.error("[DATABASE API] NETWORK EXCEPTION PROTOCOL CRASHED:", error);
+        });
     }
 
 }
