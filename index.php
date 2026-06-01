@@ -343,7 +343,7 @@ $glyphs = $stmt->fetchAll();
         function executeSystemEngagement() {
             const glyphA = document.getElementById("ui-selected-p1").innerText;
             const glyphB = document.getElementById("ui-selected-p2").innerText;
-            const rounds = 4;
+            const rounds = totalRounds;
             const executionName = document.getElementById("matchNameInput").value.trim() || "UNNAMED_ENGAGEMENT";
             const frameDelay = document.getElementById("engine-throttle-select").value;
 

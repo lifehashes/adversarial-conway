@@ -17,6 +17,9 @@ class Match{
         if (this.glyphA){ unit1.loadFromBinary(this.glyphA.bin); } else { console.log("[control.js] Match constructor(): Glyph '" + glyphA + "' not found!"); }
         if (this.glyphB){ unit2.loadFromBinary(this.glyphB.bin); } else { console.log("[control.js] Match constructor(): Glyph '" + glyphB + "' not found!"); }      
 
+        this.matchScore = { p1: 0, p2: 0 };
+        this.roundsWonByGlyph = { p1: 0, p2: 0 };
+
         this.initUI();
 
     }
@@ -42,6 +45,11 @@ class Match{
         document.getElementById("iteration1").style.color = "#ffffff";
         document.getElementById("iteration2").style.color = "#ffffff";
 
+        //  Estimate spatial and temporal envelope of the match to initialize analytics
+        maxMatchLength = Math.max(this.glyphA.gen, this.glyphB.gen);
+        totalCells = arena.rows * arena.cols;
+        initializeAnalytics();
+
         if (duelInterval) clearInterval(duelInterval);
 
         duelInterval = setInterval(() => {
@@ -58,14 +66,13 @@ class Match{
             // STOP CONDITION: The round is over once both Glyphs have reached their respective halting state
             if (!unit1.isActive && !unit2.isActive) {
                 clearInterval(duelInterval); 
-                duelInterval = null;
+                duelInterval = null;                
                 
-                // Run one last render to show the final state
-                arena.render(unit1.intrinsicColor, unit2.intrinsicColor);
+                arena.render(unit1.intrinsicColor, unit2.intrinsicColor); // Run one last render to show the final state
 
-                // calcScore();
-                // roundGraph1.record(score.p1, score.p2);
-                // roundGraph2.record(score.p2, score.p1);
+                this.calcScore();
+                roundGraph1.record(score.p1, score.p2);
+                roundGraph2.record(score.p2, score.p1);
 
                 if (this.currentRound < this.totalRounds) {
                     document.getElementById('gamestatus').innerText = `ROUND ${this.currentRound} COMPLETE - WAITING...`;
@@ -77,7 +84,7 @@ class Match{
                     document.getElementById('gamestatus').innerText = "MATCH COMPLETE";
                 }
 
-                // renderAnalytics();
+                renderAnalytics();
                 return;
 
             }
@@ -99,7 +106,7 @@ class Match{
             document.getElementById('points2').innerText = score.p2;
 
             // 5. Render Analytics
-            // renderAnalytics();
+            renderAnalytics();
 
         }, this.frameDelay);
 
@@ -141,6 +148,38 @@ class Match{
 
     }
 
+    calcScore(){
+
+        const finalRoundScore = arena.calculateScore();
+        this.matchScore.p1 += finalRoundScore.p1;
+        this.matchScore.p2 += finalRoundScore.p2;
+
+        if (this.matchScore.p1 == this.matchScore.p2){
+            document.getElementById("high-score-p1").style.color = "#ffffff";
+            document.getElementById("high-score-p1").style.color = "#ffffff";
+        } else {
+            if (this.matchScore.p1 > this.matchScore.p2){
+                document.getElementById("high-score-p1").style.color = "var(--accent-green)";
+                document.getElementById("high-score-p2").style.color = "#404040";
+            } else {
+                document.getElementById("high-score-p1").style.color = "#404040";
+                document.getElementById("high-score-p2").style.color = "var(--accent-green)";
+            }
+        }
+
+        if (finalRoundScore.p1 > finalRoundScore.p2){
+            this.roundsWonByGlyph.p1 += 1;
+            document.getElementById("rounds-won-p1").innerText = this.roundsWonByGlyph.p1;
+        } else {
+            this.roundsWonByGlyph.p2 += 1;
+            document.getElementById("rounds-won-p2").innerText = this.roundsWonByGlyph.p2;
+        }                    
+
+        document.getElementById('match-p1').innerText = this.matchScore.p1;
+        document.getElementById('match-p2').innerText = this.matchScore.p2;
+
+    }
+
 }
 
 function resetUI(){
@@ -152,7 +191,6 @@ function resetUI(){
     resetGlyph(2);
 
     if (arena){ arena.reset() };
-    clearAnalytics();
     deleteAnalytics();
 
     matchScore = { p1: 0, p2: 0 };
@@ -216,16 +254,6 @@ function resetUI(){
 
     }
 
-    function clearAnalytics(){
-
-        if (unifiedGraph) unifiedGraph.clear();
-        if (profile1) profile1.clear();
-        if (profile2) profile2.clear();
-        if (chargeHist1) chargeHist1.clear();
-        if (chargeHist2) chargeHist2.clear();
-
-    }
-
     function deleteAnalytics(){
 
         profile1 = null;
@@ -249,14 +277,92 @@ function openUnifiedConfig() {
 }
 
 function setTotalRounds(count, btn) {
-    totalRounds = count;
-    document.getElementById('total-rounds-display').innerText = count;
-
-    // UI highlight for selected button
+    totalRounds = count;    
     document.querySelectorAll('.round-opt').forEach(b => b.classList.remove('selected'));
-    btn.classList.add('selected');        
+    btn.classList.add('selected'); // UI highlight for selected button      
 }
 
 function closeUnifiedConfig() {
     document.getElementById('unifiedConfigModal').style.display = 'none';
+}
+
+function initializeAnalytics(){
+
+        // console.log("[control.js] initializeAnalytics(): Done.");
+        clearAnalytics();
+
+        if (!profile1) profile1 = new CellProfileGraph("cellProfile1", maxMatchLength);
+        if (!profile2) profile2 = new CellProfileGraph("cellProfile2", maxMatchLength);
+
+        profile1.canvas.width = profile1.canvas.offsetWidth;
+        profile2.canvas.width = profile2.canvas.offsetWidth;
+        profile1.canvas.height = 30;
+        profile2.canvas.height = 30;
+
+        if (!roundGraph1) roundGraph1 = new RoundHistoryGraph("roundHistory1", totalRounds);
+        if (!roundGraph2) roundGraph2 = new RoundHistoryGraph("roundHistory2", totalRounds);
+
+        roundGraph1.canvas.width = roundGraph1.canvas.offsetWidth;
+        roundGraph2.canvas.width = roundGraph2.canvas.offsetWidth;
+        roundGraph1.canvas.height = 30;
+        roundGraph2.canvas.height = 30;
+
+        if (!chargeHist1) chargeHist1 = new ChargeHistogram('chargeHistogram1');
+        if (!chargeHist2) chargeHist2 = new ChargeHistogram('chargeHistogram2');
+        
+        chargeHist1.canvas.width = chargeHist1.canvas.offsetWidth;
+        chargeHist2.canvas.width = chargeHist2.canvas.offsetWidth;
+        chargeHist1.canvas.height = 30;
+        chargeHist2.canvas.height = 30;
+
+        const chartWidth = document.getElementById('canvasA').offsetWidth;
+        if (!unifiedGraph) unifiedGraph = new AnalyticsEngine("unifiedChart", maxMatchLength);
+        unifiedGraph.canvas.width = chartWidth;
+        unifiedGraph.canvas.height = 200;
+
+}
+
+function renderAnalytics(){
+
+    // console.log("[control.js] renderAnalytics(): Doing ma thang!");
+
+    unifiedGraph.record(score.p1, score.p2);
+    unifiedGraph.render(unit1.intrinsicColor, unit2.intrinsicColor);
+
+    const pop1 = unit1.getPopulationCount(); 
+    const pop2 = unit2.getPopulationCount();
+    profile1.record(pop1);
+    profile2.record(pop2);
+
+    // Find the highest population seen by either player so far
+    const globalPopMax = Math.max(
+        ...profile1.history.slice(5), 
+        ...profile2.history.slice(5), 
+        10
+    );
+
+    // 2. Calculate Global Max for Charge Histogram
+    const dist1 = chargeHist1.getDistribution(arena, 1);
+    const dist2 = chargeHist2.getDistribution(arena, 2);
+    globalChargePeak = Math.max(globalChargePeak, dist1.maxCount, dist2.maxCount);
+
+    profile1.render(unit1.intrinsicColor, globalPopMax);
+    profile2.render(unit2.intrinsicColor, globalPopMax);
+
+    if (roundGraph1) roundGraph1.render(unit1.intrinsicColor, score.p1);
+    if (roundGraph2) roundGraph2.render(unit2.intrinsicColor, score.p2);
+
+    chargeHist1.render(arena, 1, unit1.intrinsicColor, globalChargePeak);
+    chargeHist2.render(arena, 2, unit2.intrinsicColor, globalChargePeak);
+
+}
+
+function clearAnalytics(){
+
+    if (unifiedGraph) unifiedGraph.clear();
+    if (profile1) profile1.clear();
+    if (profile2) profile2.clear();
+    if (chargeHist1) chargeHist1.clear();
+    if (chargeHist2) chargeHist2.clear();
+
 }
