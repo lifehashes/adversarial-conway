@@ -218,124 +218,6 @@ $glyphs = $stmt->fetchAll();
 
         }
 
-        function simulateMatch(){
-
-            // 0. Ensure that both Glyphs are loaded
-            if (!unit1.originHash || !unit2.originHash) {
-                document.getElementById('gamestatus').innerText = "ERROR: BOTH UNITS MUST BE LOADED";
-                return;
-            }       
-            
-            // 1. Reset UI at round level
-            resetUI(1);
-
-            // 2. Instantiate the Arena
-            const arenaGridSize = 96; 
-            arena = new ArenaEngine("canvasA", 600, 300, arenaGridSize);
-
-            // 3a. Estimate spatial and temporal envelope of match
-            let gen1 = document.getElementById("spec-gen1").innerText;
-            let gen2 = document.getElementById("spec-gen2").innerText;
-            maxMatchLength = Math.max(parseInt(gen1), parseInt(gen2));
-            totalCells = arena.rows * arena.cols;
-
-            // 3b. Instantiate Analytics
-            instantiateAnalytics();
-
-            // 3c. Reset match round graph
-            if (currentRound === 1){ roundGraph1.clear(); roundGraph2.clear(); }
-
-            // 4. Generate a new repeat value for this match
-            const repeatValue = Math.floor(Math.random() * 1000000);
-            arena.setSeed(repeatValue);
-            document.getElementById("round-seed").innerText = repeatValue;  
-            document.getElementById("total-rounds-display").innerText = totalRounds;          
-            //console.log("Match Seed: " + repeatValue);
-
-            // 5. Stop any existing intervals and reset Glyphs to their starting configuration
-            if (duelInterval) clearInterval(duelInterval);
-            unit1.resetToOrigin(unit1.lastLoadedBin); 
-            unit2.resetToOrigin(unit2.lastLoadedBin);            
-
-            // setTimeout(() => {}, 1000);
-
-            // 6. Start the main simulation loop
-            duelInterval = setInterval(() => {
-
-                // 1. Evolve the internal DNA of each Glyph
-                const p1Active = unit1.computeNextGeneration();
-                const p2Active = unit2.computeNextGeneration();
-
-                // Update UI counters
-                document.getElementById('iteration1').innerText = unit1.iteration;
-                document.getElementById('currentHash1').innerText = "0x" + unit1.currentHash.substring(0, 16) + "...";
-
-                document.getElementById('iteration2').innerText = unit2.iteration;
-                document.getElementById('currentHash2').innerText = "0x" + unit2.currentHash.substring(0, 16) + "...";
-
-                document.getElementById('current-round-display').innerText = currentRound;
-                document.getElementById('gamestatus').innerText = `ROUND ${currentRound} IN PROGRESS...`;
-
-                if (!p1Active) { document.getElementById('iteration1').style.color = "#ff4444"; }
-                if (!p2Active) { document.getElementById('iteration2').style.color = "#ff4444"; }   
-                
-                // STOP CONDITION: The round is over once both Glyphs have reaced their respective halting state
-                if (!unit1.isActive && !unit2.isActive) {
-                    clearInterval(duelInterval); 
-                    duelInterval = null;
-                    
-                    // Optional: Run one last render to show the final state
-                    arena.render(unit1.intrinsicColor, unit2.intrinsicColor);
-
-                    calcScore();
-                    roundGraph1.record(score.p1, score.p2);
-                    roundGraph2.record(score.p2, score.p1);
-
-                    if (currentRound < totalRounds) {
-                        document.getElementById('gamestatus').innerText = `ROUND ${currentRound} COMPLETE - WAITING...`;
-                        currentRound++;
-
-                        let waitBetweenRounds = 3000;
-                        setTimeout(simulateMatch, waitBetweenRounds);
-                    } else {
-                        if (currentActiveMode === 'tournament') {
-                            document.getElementById('gamestatus').innerText = `MATCH COMPLETE // STEPPING GRID...`;
-                            currentMatchIndex++;
-                            setTimeout(loadAndStartNextMatch, 4000);
-                        } else {
-                            document.getElementById('gamestatus').innerText = "MATCH COMPLETE";
-                            currentRound = 1; 
-                        }
-                    }
-
-                    renderAnalytics();
-                    return;
-
-                }
-
-                arena.applyJitter();
-
-                // 2. Project/Stamp the current DNA onto the Arena
-                arena.stamp(unit1, 1);
-                arena.stamp(unit2, 2);
-
-                // 3. Render the preview windows (the DNA)
-                unit1.render();
-                unit2.render();
-
-                // 4. Render the Arena (the Charge Field)
-                arena.render(unit1.intrinsicColor, unit2.intrinsicColor);
-                score = arena.calculateScore();
-                document.getElementById('points1').innerText = score.p1;
-                document.getElementById('points2').innerText = score.p2;
-
-                // 5. Render Analytics
-                renderAnalytics();
-
-            }, frameDelay);
-
-        }
-
         function switchMode(mode) {
             currentActiveMode = mode;
             const singlePanel = document.getElementById('panel-single-match');
@@ -366,7 +248,6 @@ $glyphs = $stmt->fetchAll();
             }
         }
 
-        // Filters full pool list using current Layer 1 validation ranges
         function getFilteredPool() {
             const minGen = parseInt(document.getElementById('filter-gen-min').value) || 0;
             const maxGen = parseInt(document.getElementById('filter-gen-max').value) || Infinity;
@@ -412,25 +293,9 @@ $glyphs = $stmt->fetchAll();
             const originHash = "0x" + element.getAttribute('data-originHash').substring(0, 16) + "...";
 
             if (targetPickerSlot === 1) {
-                unit1.loadFromBinary(binary);
-                unit1.lastLoadedBin = binary;
                 document.getElementById('ui-selected-p1').innerText = name;
-                document.getElementById('name1').innerText = name;
-                document.getElementById('spec-gen1').innerText = gen;
-                document.getElementById('spec-peak1').innerText = peak;
-                document.getElementById('spec-max1').innerText = max;
-                document.getElementById('spec-min1').innerText = min;
-                document.getElementById('originHash1').innerText = originHash;
             } else {
-                unit2.loadFromBinary(binary);
-                unit2.lastLoadedBin = binary;
                 document.getElementById('ui-selected-p2').innerText = name;
-                document.getElementById('name2').innerText = name;
-                document.getElementById('spec-gen2').innerText = gen;
-                document.getElementById('spec-peak2').innerText = peak;
-                document.getElementById('spec-max2').innerText = max;
-                document.getElementById('spec-min2').innerText = min;
-                document.getElementById('originHash2').innerText = originHash;
             }
             closeSelectionModal();
         }
@@ -444,25 +309,9 @@ $glyphs = $stmt->fetchAll();
             const chosen = pool[Math.floor(Math.random() * pool.length)];
             
             if (slot === 1) {
-                unit1.loadFromBinary(chosen.bin);
-                unit1.lastLoadedBin = chosen.bin;
                 document.getElementById('ui-selected-p1').innerText = chosen.name;
-                document.getElementById('name1').innerText = chosen.name;
-                document.getElementById('spec-gen1').innerText = chosen.gen;
-                document.getElementById('spec-peak1').innerText = chosen.peak;
-                document.getElementById('spec-max1').innerText = chosen.max;
-                document.getElementById('spec-min1').innerText = chosen.min;
-                document.getElementById('originHash1').innerText = "0x" + chosen.originHash.substring(0, 16) + "...";
             } else {
-                unit2.loadFromBinary(chosen.bin);
-                unit2.lastLoadedBin = chosen.bin;
                 document.getElementById('ui-selected-p2').innerText = chosen.name;
-                document.getElementById('name2').innerText = chosen.name;
-                document.getElementById('spec-gen2').innerText = chosen.gen;
-                document.getElementById('spec-peak2').innerText = chosen.peak;
-                document.getElementById('spec-max2').innerText = chosen.max;
-                document.getElementById('spec-min2').innerText = chosen.min;
-                document.getElementById('originHash2').innerText = "0x" + chosen.originHash.substring(0, 16) + "...";
             }
         }
 
@@ -492,82 +341,18 @@ $glyphs = $stmt->fetchAll();
         }
 
         function executeSystemEngagement() {
-            const executionName = document.getElementById('matchNameInput').value.trim() || "UNNAMED_ENGAGEMENT";
-            document.getElementById('matchID').innerText = executionName.toUpperCase();
+            const glyphA = document.getElementById("ui-selected-p1").innerText;
+            const glyphB = document.getElementById("ui-selected-p2").innerText;
+            const rounds = 4;
+            const executionName = document.getElementById("matchNameInput").value.trim() || "UNNAMED_ENGAGEMENT";
+            const frameDelay = document.getElementById("engine-throttle-select").value;
 
             if (currentActiveMode === 'single') {
                 document.getElementById('unifiedConfigModal').style.display = 'none';
-                currentRound = 1;
-                simulateMatch();
+                let myMatch = new Match(glyphA, glyphB, executionName, rounds, frameDelay);
+                myMatch.run();
             } else {
-                if (activeTournamentPool.length === 0 || activeTournamentPool.length !== selectedTournamentN) {
-                    alert(`CRITICAL INTERCEPT: You must inject or select contestants for an N=${selectedTournamentN} tournament matrix before initializing.`);
-                    return;
-                }
-
-                document.getElementById('unifiedConfigModal').style.display = 'none';
-                
-                // Initialize the Tournament Manager globally
-                TourneyHalleck = new TournamentManager(activeTournamentPool);
-                
-                // Reset our match index tracking pointer for a fresh start
-                currentMatchIndex = 0;
-
-                // Reset overall win/loss metrics in the control UI if desired
-                document.getElementById("rounds-won-p1").innerText = "0";
-                document.getElementById("rounds-won-p2").innerText = "0";
-
-                // Kick off the asynchronous tournament processor loop
-                loadAndStartNextMatch();
-            }
-        }
-
-        function loadAndStartNextMatch() {
-            const totalMatches = TourneyHalleck.matchQueue.length;
-
-            if (currentMatchIndex < totalMatches) {
-                // Explicitly sync the manager's index pointer with our loop pointer
-                TourneyHalleck.currentMatchIndex = currentMatchIndex;
-                const activeMatch = TourneyHalleck.getNextMatch();
-                resetUI(0);
-
-                if (activeMatch) {
-                    console.log(`[TOURNAMENT] Initializing Match ${currentMatchIndex + 1}/${totalMatches}:`, activeMatch);
-                    
-                    unit1.loadFromBinary(activeMatch.p1.bin);
-                    unit1.lastLoadedBin = activeMatch.p1.bin;
-                    unit2.loadFromBinary(activeMatch.p2.bin);
-                    unit2.lastLoadedBin = activeMatch.p2.bin;
-
-                    document.getElementById('name1').innerText = activeMatch.p1.name;
-                    document.getElementById('name2').innerText = activeMatch.p2.name;
-
-                    document.getElementById('spec-gen1').innerText = activeMatch.p1.gen;
-                    document.getElementById('spec-peak1').innerText = activeMatch.p1.peak;
-                    document.getElementById('spec-max1').innerText = activeMatch.p1.max;
-                    document.getElementById('spec-min1').innerText = activeMatch.p1.min;
-                    document.getElementById('originHash1').innerText = "0x" + activeMatch.p1.originHash.substring(0, 16) + "...";
-
-                    document.getElementById('spec-gen2').innerText = activeMatch.p2.gen;
-                    document.getElementById('spec-peak2').innerText = activeMatch.p2.peak;
-                    document.getElementById('spec-max2').innerText = activeMatch.p2.max;
-                    document.getElementById('spec-min2').innerText = activeMatch.p2.min;
-                    document.getElementById('originHash2').innerText = "0x" + activeMatch.p2.originHash.substring(0, 16) + "...";
-                    
-                    // Clear round graph visuals before the first round of the new match begins
-                    if (roundGraph1) roundGraph1.clear();
-                    if (roundGraph2) roundGraph2.clear();
-
-                    currentRound = 1;
-                    document.getElementById('gamestatus').innerText = `TOURNAMENT MATCH ${currentMatchIndex + 1}/${totalMatches}`;
-                    
-                    simulateMatch(); 
-                } else {
-                    alert("ERROR GENERATING MATCH PAYLOAD");
-                }
-            } else {
-                document.getElementById('gamestatus').innerText = "TOURNAMENT COMPLETE";
-                alert("🏁 TOURNAMENT LOG COMPLETED: All queue pairings resolved.");
+                console.log("[index.php] executeSystemEngagement(): Your selected mode 'tournament' is currently unavailable.");
             }
         }
 

@@ -242,3 +242,21 @@ function resetUI(){
     }
 
 }
+
+function openUnifiedConfig() {
+    resetUI(0);
+    document.getElementById('unifiedConfigModal').style.display = 'flex';
+}
+
+function setTotalRounds(count, btn) {
+    totalRounds = count;
+    document.getElementById('total-rounds-display').innerText = count;
+
+    // UI highlight for selected button
+    document.querySelectorAll('.round-opt').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');        
+}
+
+function closeUnifiedConfig() {
+    document.getElementById('unifiedConfigModal').style.display = 'none';
+}
