@@ -13,10 +13,8 @@ $glyphs = $stmt->fetchAll();
     <title>HASHWAR ENGINE :: v220</title>
     <style></style>
     <link rel="stylesheet" href="styles.css">
+    <SCRIPT SRC="js/adv-conw-hash.js"></SCRIPT>
     <SCRIPT SRC="js/control.js"></SCRIPT>
-	<SCRIPT SRC="js/gol.js"></SCRIPT>
-	<SCRIPT SRC="js/sha256.js"></SCRIPT>
-    <SCRIPT SRC="js/adversarial.js"></SCRIPT>
     <SCRIPT SRC="js/analytics.js"></SCRIPT>
     <SCRIPT SRC="js/tournament.js"></SCRIPT>
 </head>
