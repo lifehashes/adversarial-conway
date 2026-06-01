@@ -2,7 +2,7 @@
 include_once __DIR__ . '/../../priv/db_conf_laniakea.php';
 
 // Fetch all available Conway Glyphs from the database
-$stmt = $pdo->query("SELECT BATTLE_NAME, BIN, ITERATIONS as GENERATIONS, PEAK, MAX, MIN, HASH FROM GLYPHREG ORDER BY BATTLE_NAME ASC");
+$stmt = $pdo->query("SELECT BATTLE_NAME, BIN, ITERATIONS as GENERATIONS, PEAK, MAX, MIN, HASH, TERMINAL, OWNER FROM GLYPHREG ORDER BY BATTLE_NAME ASC");
 $glyphs = $stmt->fetchAll();
 ?>
 <!DOCTYPE html>
@@ -337,7 +337,7 @@ $glyphs = $stmt->fetchAll();
         let unifiedGraph;
         
         // Cache array built out of PHP payload pool objects for rapid dynamic filters
-        const rawGlyphRegistry = [
+        const GlyphRegistry = [
             <?php foreach ($glyphs as $glyph): ?>
             {
                 name: "<?php echo addslashes($glyph['BATTLE_NAME']); ?>",
@@ -346,7 +346,9 @@ $glyphs = $stmt->fetchAll();
                 peak: parseInt("<?php echo $glyph['PEAK']; ?>") || 0,
                 min: parseInt("<?php echo $glyph['MIN']; ?>") || 0,
                 max: parseInt("<?php echo $glyph['MAX']; ?>") || 0,
-                originHash: "<?php echo addslashes($glyph['HASH']); ?>"
+                originHash: "<?php echo addslashes($glyph['HASH']); ?>",
+                terminal: "<?php echo addslashes($glyph['TERMINAL']); ?>",
+                owner: "<?php echo addslashes($glyph['OWNER']); ?>"
             },
             <?php endforeach; ?>
         ];
