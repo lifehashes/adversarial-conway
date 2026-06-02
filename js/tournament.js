@@ -70,7 +70,14 @@ class Tournament {
             const prospectiveMatches = {};
 
             this.survivors.forEach(player => {
-                const historicalMatch = this.results.find(r => r.winner.name === player.name && r.status === 'eliminated');
+                // FIX: Look up the LATEST historical match won by this player by scanning backwards
+                let historicalMatch = null;
+                for (let i = this.results.length - 1; i >= 0; i--) {
+                    if (this.results[i].winner.name === player.name && this.results[i].status === 'eliminated') {
+                        historicalMatch = this.results[i];
+                        break;
+                    }
+                }
                 
                 const wing = historicalMatch ? historicalMatch.wing : 'left';
                 const targetSlot = historicalMatch ? Math.floor(historicalMatch.slot / 2) : 0;
