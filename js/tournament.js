@@ -129,6 +129,13 @@ class Tournament {
             await myMatch.run();
             await new Promise(resolve => setTimeout(resolve, waitBetweenMatches));
 
+            this.recordResult(
+                glyphA, 
+                glyphB,
+                myMatch.matchScore.p1,
+                myMatch.matchScore.p2
+            );
+
             // Update Visuals
             tourneyVisualizer.updateEdge(
                 document.getElementById('name1').innerText, 
@@ -253,7 +260,7 @@ class TournamentLeaderboard {
         ctx.clearRect(0, 0, w, h);
 
         // Header
-        ctx.font = "10px 'Courier New'";
+        ctx.font = "11px 'Courier New'";
         ctx.fillStyle = "rgba(209, 209, 209, 0.5)";
         ctx.fillText("GLYPH", 10, 20);
         ctx.fillText("P", 120, 20);  // Played
