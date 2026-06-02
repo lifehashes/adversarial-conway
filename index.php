@@ -358,6 +358,7 @@ $glyphs = $stmt->fetchAll();
 
             } else {
 
+                document.getElementById('unifiedConfigModal').style.display = 'none';
                 TourneyHalleck = new Tournament(activeTournamentPool, 'round-robin');
                 TourneyHalleck.runTournament();
 

@@ -85,6 +85,7 @@ class Tournament {
             await myMatch.run();
             await new Promise(resolve => setTimeout(resolve, waitBetweenMatches));
 
+            resetUI();
             this.currentMatchIndex += 1;
             this.runTournament(); 
     
