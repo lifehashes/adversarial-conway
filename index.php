@@ -15,7 +15,8 @@ $glyphs = $stmt->fetchAll();
     <link rel="stylesheet" href="styles.css">
     <SCRIPT SRC="js/adv-conw-hash.js"></SCRIPT>
     <SCRIPT SRC="js/analytics.js"></SCRIPT>
-    <SCRIPT SRC="js/control.js"></SCRIPT>    
+    <SCRIPT SRC="js/control.js"></SCRIPT>
+    <SCRIPT SRC="js/tournament.js"></SCRIPT>    
 </head>
 <body>
 
@@ -169,7 +170,8 @@ $glyphs = $stmt->fetchAll();
         let selectedTournamentN = 4;
         let activeTournamentPool = [];
         let TourneyHalleck = null; // the master of the revels overseeing the tournaments
-        let currentMatchIndex = 0;
+        let matchIndex = null;
+        let tourneyLength = null;
         let tourneyVisualizer;
         let tourneyLeaderboard;
 
@@ -341,18 +343,24 @@ $glyphs = $stmt->fetchAll();
         }
 
         function executeSystemEngagement() {
-            const glyphA = document.getElementById("ui-selected-p1").innerText;
-            const glyphB = document.getElementById("ui-selected-p2").innerText;
-            const rounds = totalRounds;
-            const executionName = document.getElementById("matchNameInput").value.trim() || "UNNAMED_ENGAGEMENT";
+         
             const frameDelay = document.getElementById("engine-throttle-select").value;
 
             if (currentActiveMode === 'single') {
+
+                const glyphA = document.getElementById("ui-selected-p1").innerText;
+                const glyphB = document.getElementById("ui-selected-p2").innerText;
+                const executionName = document.getElementById("matchNameInput").value.trim() || "UNNAMED_ENGAGEMENT";
+
                 document.getElementById('unifiedConfigModal').style.display = 'none';
-                let myMatch = new Match(glyphA, glyphB, executionName, rounds, frameDelay);
+                let myMatch = new Match(glyphA, glyphB, executionName, totalRounds, frameDelay);
                 myMatch.run();
+
             } else {
-                console.log("[index.php] executeSystemEngagement(): Your selected mode 'tournament' is currently unavailable.");
+
+                TourneyHalleck = new Tournament(activeTournamentPool, 'round-robin');
+                TourneyHalleck.runTournament();
+
             }
         }
 
