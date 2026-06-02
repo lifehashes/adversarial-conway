@@ -192,7 +192,7 @@ class Tournament {
                 
                 // Visualizers initialization
                 tourneyVisualizer = new TournamentVisualizer("tournamentPolygon", this.contestants, this.mode);
-                tourneyLeaderboard = new TournamentLeaderboard("tournamentLeaderboard", this.contestants);
+                tourneyLeaderboard = new TournamentLeaderboard("tournamentLeaderboard", this.contestants, this.mode);
 
                 this.runTournament();
             } else {
@@ -515,11 +515,13 @@ class TournamentVisualizer {
 }
 
 class TournamentLeaderboard {
-    constructor(canvasId, contestants) {
+    constructor(canvasId, contestants, mode) {
         this.canvas = document.getElementById(canvasId);
         this.ctx = this.canvas.getContext('2d');
         this.contestants = contestants;
         this.totalMatchesPerGlyph = (contestants.length - 1) * 2;
+        this.maxRounds = Math.ceil(Math.log2(this.contestants.length));
+        this.mode = mode;
     }
 
     render(standings) {
@@ -550,7 +552,19 @@ class TournamentLeaderboard {
             ctx.fillStyle = "rgba(255,255,255,0.05)";
             ctx.fillRect(10, y + 5, w - 20, 15);
 
-            const progress = (data.wins + data.losses) / this.totalMatchesPerGlyph;
+            // const progress = (data.wins + data.losses) / this.totalMatchesPerGlyph;
+
+            // Calculate the maximum possible games a single competitor can play in this variant
+            let maxPossibleGames = this.totalMatchesPerGlyph;
+            if (this.mode === 'knock-out') {
+                // In knock-out, the absolute maximum matches a Grand Champion plays is maxRounds
+                maxPossibleGames = this.maxRounds;
+            }
+
+            // Compute progress percentage against the correct baseline
+            const totalPlayed = data.wins + data.losses;
+            const progress = maxPossibleGames > 0 ? (totalPlayed / maxPossibleGames) : 0;
+
             ctx.fillStyle = glyphObj.intrinsicColor || "#42f485";
             ctx.globalAlpha = 0.3;
             ctx.fillRect(10, y + 5, (w - 20) * progress, 15);
