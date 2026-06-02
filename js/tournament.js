@@ -20,7 +20,7 @@ class Tournament {
         }
         // Initialize standings
         this.contestants.forEach(c => {
-            this.standings[c.BATTLE_NAME] = { wins: 0, losses: 0, points: 0 };
+            this.standings[c.name] = { wins: 0, losses: 0, points: 0 };
         });
     }
 
@@ -90,7 +90,11 @@ class Tournament {
                 this.dbTourneyId = result.tournament_id;
                 console.log("[tournament.js] Database tournament registered successfully. ID: " + this.dbTourneyId);
                 
-                // 3. NOW it is safe to kick off your async match loops!
+                // 3a. Initialize Visuals
+                tourneyVisualizer = new TournamentVisualizer("tournamentPolygon", this.contestants);
+                tourneyLeaderboard = new TournamentLeaderboard("tournamentLeaderboard", this.contestants);
+
+                // 3b. NOW it is safe to kick off your async match loops!
                 this.runTournament();
             } else {
                 console.error("[tournament.js] Database rejected tournament creation: ", result.error);
@@ -99,6 +103,7 @@ class Tournament {
         } catch (error) {
             console.error("[tournament.js] Network failure initializing tournament: ", error);
         }
+
     }
 
     async runTournament(){
@@ -116,10 +121,21 @@ class Tournament {
             let executionName = document.getElementById("matchNameInput").value.trim() || "UNNAMED_ENGAGEMENT";
             executionName = executionName + "_M_" + mI;
 
+            tourneyVisualizer.render(glyphA, glyphB);
+            tourneyLeaderboard.render(TourneyHalleck.standings);
+
             let myMatch = new Match(glyphA, glyphB, executionName, totalRounds, frameDelay, this.dbTourneyId);
 
             await myMatch.run();
             await new Promise(resolve => setTimeout(resolve, waitBetweenMatches));
+
+            // Update Visuals
+            tourneyVisualizer.updateEdge(
+                document.getElementById('name1').innerText, 
+                document.getElementById('name2').innerText
+            );
+            tourneyVisualizer.render();
+            tourneyLeaderboard.render(TourneyHalleck.standings);
 
             resetUI();
             this.currentMatchIndex += 1;
@@ -175,15 +191,15 @@ class TournamentVisualizer {
             for (let j = i + 1; j < this.nodes.length; j++) {
                 const n1 = this.nodes[i];
                 const n2 = this.nodes[j];
-                const key = [n1.glyph.BATTLE_NAME, n2.glyph.BATTLE_NAME].sort().join('_');
+                const key = [n1.glyph.name, n2.glyph.name].sort().join('_');
                 const status = this.edgeStatus[key] || 0;
 
                 // Determine Color
                 let color = 'rgba(100, 100, 100, 0.3)'; // Grey (Pending)
                 let lineWidth = 2;
 
-                if ((n1.glyph.BATTLE_NAME === activeP1Name && n2.glyph.BATTLE_NAME === activeP2Name) ||
-                    (n1.glyph.BATTLE_NAME === activeP2Name && n2.glyph.BATTLE_NAME === activeP1Name)) {
+                if ((n1.glyph.name === activeP1Name && n2.glyph.name === activeP2Name) ||
+                    (n1.glyph.name === activeP2Name && n2.glyph.name === activeP1Name)) {
                     color = '#FFFFFF'; // White (Active)
                     lineWidth = 3;
                 } else if (status === 1) {
@@ -203,7 +219,7 @@ class TournamentVisualizer {
 
         // 2. Draw nodes representing the Glyphs
         this.nodes.forEach(node => {
-            const isActive = node.glyph.BATTLE_NAME === activeP1Name || node.glyph.BATTLE_NAME === activeP2Name;
+            const isActive = node.glyph.name === activeP1Name || node.glyph.name === activeP2Name;
             
             ctx.beginPath();
             ctx.arc(node.x, node.y, 8, 0, Math.PI * 2);
@@ -255,7 +271,7 @@ class TournamentLeaderboard {
         sorted.forEach((name, i) => {
             const data = standings[name];
             const y = topPadding + (i * rowHeight);
-            const glyphObj = this.contestants.find(c => c.BATTLE_NAME === name);
+            const glyphObj = this.contestants.find(c => c.name === name);
 
             // 1. Completion Bar (Background)
             ctx.fillStyle = "rgba(255,255,255,0.05)";
@@ -263,7 +279,7 @@ class TournamentLeaderboard {
 
             // 2. Completion Bar (Progress)
             const progress = (data.wins + data.losses) / this.totalMatchesPerGlyph;
-            ctx.fillStyle = glyphObj.color || "#42f485";
+            ctx.fillStyle = glyphObj.intrinsicColor || "#42f485";
             ctx.globalAlpha = 0.3;
             ctx.fillRect(10, y + 5, (w - 20) * progress, 15);
             ctx.globalAlpha = 1.0;

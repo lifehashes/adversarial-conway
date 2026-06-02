@@ -193,7 +193,8 @@ $glyphs = $stmt->fetchAll();
                 max: parseInt("<?php echo $glyph['MAX']; ?>") || 0,
                 originHash: "<?php echo addslashes($glyph['HASH']); ?>",
                 terminal: "<?php echo addslashes($glyph['TERMINAL']); ?>",
-                owner: "<?php echo addslashes($glyph['OWNER']); ?>"
+                owner: "<?php echo addslashes($glyph['OWNER']); ?>",
+                intrinsicColor: "#" + "<?php echo addslashes($glyph['HASH']); ?>".substring(3, 9)
             },
             <?php endforeach; ?>
         ];
