@@ -346,6 +346,7 @@ $glyphs = $stmt->fetchAll();
         function executeSystemEngagement() {
          
             const frameDelay = document.getElementById("engine-throttle-select").value;
+            const selectedTourneyMode = document.getElementById("tournament-mode-select").value;
 
             if (currentActiveMode === 'single') {
 
@@ -360,7 +361,7 @@ $glyphs = $stmt->fetchAll();
             } else {
 
                 document.getElementById('unifiedConfigModal').style.display = 'none';
-                TourneyHalleck = new Tournament(activeTournamentPool, 'round-robin');
+                TourneyHalleck = new Tournament(activeTournamentPool, selectedTourneyMode);
                 TourneyHalleck.startTournament();
 
             }

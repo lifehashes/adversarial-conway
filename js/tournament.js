@@ -333,7 +333,7 @@ class TournamentVisualizer {
     getBracketNodeCoords(wing, roundIndex, slotIndex) {
         const w = this.canvas.width;
         const h = this.canvas.height;
-        const padding = 50;
+        const padding = 10;
         
         // Calculate horizontal spacing based on max rounds
         const horizontalStep = (w / 2 - padding) / this.maxRounds;
@@ -482,16 +482,7 @@ class TournamentVisualizer {
             });
         });
 
-        // 2. Render Active Combatants Overlay
-        if (activeP1Name && activeP2Name) {
-            ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
-            ctx.font = "bold 12px 'Courier New'";
-            ctx.textAlign = "center";
-            ctx.fillText(`LIVE MATCH: ${activeP1Name} VS ${activeP2Name}`, w / 2, h - 20);
-            ctx.textAlign = "start"; 
-        }
-
-        // 3. Render Grand Champion Showcase
+        // 2. Render Grand Champion Showcase
         if (this.grandChampion) {
             const cx = w / 2;
             const cy = h / 2;
