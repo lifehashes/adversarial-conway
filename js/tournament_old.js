@@ -44,7 +44,7 @@ class Tournament {
             return;
         }
 
-        // console.log("[tournament.js] Tournament{}.generateKnockOut(): survivors = " + this.survivors.map(c => c ? c.name : "null").join(", "));
+        console.log("[tournament.js] Tournament{}.generateKnockOut(): survivors = " + this.survivors.map(c => c ? c.name : "null").join(", "));
 
         // --- ROUND 0: Initial seeding ---
         if (this.results.length === 0) {
@@ -228,7 +228,7 @@ class Tournament {
             this.runTournament(); 
         } else {
             if (this.mode === 'knock-out' && this.survivors.length > 1) {
-                // console.log(`[tournament.js] Round complete. ${this.survivors.length} glyphs survive. Generating next round...`);
+                console.log(`[tournament.js] Round complete. ${this.survivors.length} glyphs survive. Generating next round...`);
                 
                 tourneyVisualizer.advanceRoundTier();     
                 
@@ -278,38 +278,89 @@ class TournamentVisualizer {
     }
 
     initBracket() {
-        this.bracketStructure = {
-            left: [],
-            right: []
-        };
+        const w = this.canvas.width;
+        const h = this.canvas.height;
+        const paddingX = 75;
+        const midX = w / 2;
+        const midY = h / 2;
+        const roundSpacing = (midX - paddingX) / this.maxRounds;
 
-        // Layer 0 needs to hold the initial SEEDS (Contestants)
-        // For 8 contestants, that's 4 contestants per wing on Layer 0.
-        const halfContestants = Math.ceil(this.contestants.length / 2);
-        
-        // We iterate up to maxRounds + 1 to include the initial seeding layer
-        for (let round = 0; round <= this.maxRounds; round++) {
-            const slotsInRound = Math.ceil(halfContestants / Math.pow(2, round));
+        for (let r = 0; r <= this.maxRounds; r++) {
+            this.bracketStructure[r] = [];
+        }
+
+        // Separate contestants into pure visual arrays
+        let leftWingContestants = this.contestants.slice(0, this.contestants.length / 2);
+        let rightWingContestants = this.contestants.slice(this.contestants.length / 2);
+
+        // Plot Round 0 Left Column nodes sequentially down Y
+        leftWingContestants.forEach((glyph, i) => {
+            const y = 40 + (i * (h - 80) / (leftWingContestants.length - 1 || 1));
+            this.bracketStructure[0].push({ 
+                x: paddingX, y, glyph, isLeft: true, matchSlot: i 
+            });
+        });
+
+        // Plot Round 0 Right Column nodes sequentially down Y
+        rightWingContestants.forEach((glyph, i) => {
+            const y = 40 + (i * (h - 80) / (rightWingContestants.length - 1 || 1));
+            this.bracketStructure[0].push({ 
+                x: w - paddingX, y, glyph, isLeft: false, matchSlot: i 
+            });
+        });
+
+        // Pre-calculate convergence positions for deeper rounds up to the Semi-Finals
+        // FIX: Change condition to strictly LESS THAN (r < this.maxRounds)
+        for (let r = 1; r < this.maxRounds; r++) {
+            const nodesInPrevRound = this.bracketStructure[r - 1];
             
-            if (slotsInRound > 0) {
-                this.bracketStructure.left.push(new Array(slotsInRound).fill(null));
-                this.bracketStructure.right.push(new Array(slotsInRound).fill(null));
-            }
+            // 1. Group Left wing parents by their FUTURE slot
+            let leftSlots = {};
+            nodesInPrevRound.filter(n => n.isLeft).forEach(n => {
+                const nextSlot = Math.floor(n.matchSlot / 2);
+                if (!leftSlots[nextSlot]) leftSlots[nextSlot] = [];
+                leftSlots[nextSlot].push(n);
+            });
+
+            Object.keys(leftSlots).forEach((slotStr) => {
+                const slot = parseInt(slotStr, 10);
+                const parents = leftSlots[slot];
+                const x = paddingX + (r * roundSpacing);
+                const y = parents.reduce((sum, n) => sum + n.y, 0) / parents.length;
+                
+                this.bracketStructure[r].push({ 
+                    x, y, glyph: null, isLeft: true, matchSlot: slot 
+                });
+            });
+
+            // 2. Group Right wing parents by their FUTURE slot
+            let rightSlots = {};
+            nodesInPrevRound.filter(n => !n.isLeft).forEach(n => {
+                const nextSlot = Math.floor(n.matchSlot / 2);
+                if (!rightSlots[nextSlot]) rightSlots[nextSlot] = [];
+                rightSlots[nextSlot].push(n);
+            });
+
+            Object.keys(rightSlots).forEach((slotStr) => {
+                const slot = parseInt(slotStr, 10);
+                const parents = rightSlots[slot];
+                const x = w - paddingX - (r * roundSpacing);
+                const y = parents.reduce((sum, n) => sum + n.y, 0) / parents.length;
+                
+                this.bracketStructure[r].push({ 
+                    x, y, glyph: null, isLeft: false, matchSlot: slot 
+                });
+            });
         }
 
-        // --- PRE-POPULATE LAYER 0 WITH INITIAL CONTESTANTS ---
-        let leftIdx = 0;
-        let rightIdx = 0;
-        for (let i = 0; i < this.contestants.length; i++) {
-            const isLeft = i < this.contestants.length / 2;
-            if (isLeft) {
-                this.bracketStructure.left[0][leftIdx++] = this.contestants[i];
-            } else {
-                this.bracketStructure.right[0][rightIdx++] = this.contestants[i];
-            }
-        }
-        
-        this.grandChampion = null; 
+        // --- NEW: Plot the single Grand Champion terminal node in the middle ---
+        this.bracketStructure[this.maxRounds].push({
+            x: midX,
+            y: midY,
+            glyph: null,
+            isLeft: true, // Arbitrary flag since it's perfectly centered
+            matchSlot: 0
+        });
     }
 
     advanceRoundTier() {
@@ -317,40 +368,35 @@ class TournamentVisualizer {
     }
 
     recordBracketResult(wing, slotIndex, winnerGlyph) {
-        // Because Layer 0 is occupied by initial seeds, 
-        // the results of currentVisualRound (0, 1, etc.) belong in layer (currentVisualRound + 1)
-        const targetLayer = this.currentVisualRound + 1;
-        if (this.bracketStructure[wing] && this.bracketStructure[wing][targetLayer]) {
-            this.bracketStructure[wing][targetLayer][slotIndex] = winnerGlyph;
+        if (this.mode !== 'knock-out') return;
+        
+        // If we are recording the results of the final match tier, update the Grand Champion node
+        if (this.currentVisualRound === this.maxRounds - 1) {
+            this.setGrandChampion(winnerGlyph);
+            return; 
+        }
+
+        // Find the node container on the next visual level step
+        const nextRoundNodes = this.bracketStructure[this.currentVisualRound + 1];
+        if (nextRoundNodes) {
+            const lookForLeft = (wing === 'left');
+            // Calculate the exact parent slot target using integer division
+            const targetParentSlot = Math.floor(slotIndex / 2);
+            
+            // CRITICAL FIX: Ensure the wing matches perfectly so data doesn't leak to the opposing flight column
+            const targetedNode = nextRoundNodes.find(n => n.isLeft === lookForLeft && n.matchSlot === targetParentSlot);
+            
+            if (targetedNode) {
+                targetedNode.glyph = winnerGlyph;
+            }
         }
     }
 
     setGrandChampion(winnerGlyph) {
-        this.grandChampion = winnerGlyph;
-    }
-
-    // HELPER
-    getBracketNodeCoords(wing, roundIndex, slotIndex) {
-        const w = this.canvas.width;
-        const h = this.canvas.height;
-        const padding = 50;
-        
-        // Calculate horizontal spacing based on max rounds
-        const horizontalStep = (w / 2 - padding) / this.maxRounds;
-        
-        let x;
-        if (wing === 'left') {
-            x = padding + (roundIndex * horizontalStep);
-        } else {
-            x = w - padding - (roundIndex * horizontalStep);
+        const finalRound = this.bracketStructure[this.maxRounds];
+        if (finalRound && finalRound[0]) {
+            finalRound[0].glyph = winnerGlyph;
         }
-
-        // Calculate vertical spacing dynamically per round
-        const totalSlotsInRound = this.bracketStructure[wing][roundIndex].length;
-        const verticalStep = (h - 2 * padding) / (totalSlotsInRound + 1);
-        const y = padding + (slotIndex + 1) * verticalStep;
-
-        return { x, y };
     }
 
     updateEdge(idA, idB) {
@@ -422,97 +468,88 @@ class TournamentVisualizer {
 
     renderBracket(activeP1Name, activeP2Name) {
         const ctx = this.ctx;
-        const w = this.canvas.width;
-        const h = this.canvas.height;
 
-        // 1. Draw Bracket Tree Lines & Nodes
-        ['left', 'right'].forEach(wing => {
-            const rounds = this.bracketStructure[wing];
-            
-            rounds.forEach((roundSlots, roundIdx) => {
-                roundSlots.forEach((glyph, slotIdx) => {
-                    const { x, y } = this.getBracketNodeCoords(wing, roundIdx, slotIdx);
+        // 1. Draw structural geometric connecting step lines
+        for (let r = 0; r < this.maxRounds; r++) {
+            const currentNodes = this.bracketStructure[r];
+            const nextNodes = this.bracketStructure[r + 1];
 
-                    // If not the absolute final tier node of the wing, draw tree paths forward
-                    if (roundIdx < rounds.length - 1) {
-                        const nextSlotIdx = Math.floor(slotIdx / 2);
-                        const nextCoords = this.getBracketNodeCoords(wing, roundIdx + 1, nextSlotIdx);
-                        
-                        ctx.beginPath();
-                        ctx.moveTo(x, y);
-                        // Clean squared orthodontic-style bracket pathing
-                        ctx.lineTo((x + nextCoords.x) / 2, y);
-                        ctx.lineTo((x + nextCoords.x) / 2, nextCoords.y);
-                        ctx.lineTo(nextCoords.x, nextCoords.y);
-                        ctx.strokeStyle = 'rgba(100, 100, 100, 0.4)';
-                        ctx.lineWidth = 1.5;
-                        ctx.stroke();
-                    } else {
-                        // Connect final tier nodes directly to the Grand Final center spotlight
-                        ctx.beginPath();
-                        ctx.moveTo(x, y);
-                        ctx.lineTo(w / 2, h / 2);
-                        ctx.strokeStyle = 'rgba(150, 150, 150, 0.3)';
-                        ctx.lineWidth = 2;
-                        ctx.stroke();
-                    }
-
-                    // Render node circle anchor
-                    ctx.beginPath();
-                    ctx.arc(x, y, 6, 0, Math.PI * 2);
-                    ctx.fillStyle = glyph ? (glyph.intrinsicColor || "#42f485") : "rgba(50, 50, 50, 0.5)";
-                    ctx.fill();
-
-                    // Draw text labels safely if a participant occupies this spot
-                    if (glyph && glyph.name) {
-                        ctx.fillStyle = "#FFF";
-                        ctx.font = "10px 'Courier New'";
-                        
-                        // Push text outward on the left wing, inward on the right wing so it never overlaps paths
-                        const textOffset = wing === 'left' ? -25 : 15;
-                        
-                        // Cleanly slice names that are too long to prevent chaotic overlaps
-                        const displayName = glyph.name
-                            .split(' ')
-                            .map(word => word.charAt(0).toUpperCase())
-                            .join('');
-                        ctx.fillText(displayName, x + textOffset, y + 3);
-                    }
+            currentNodes.forEach(node => {
+                if (!nextNodes) return;
+                
+                const targetNode = nextNodes.find(n => {
+                    // For the grand final circle, ignore wing constraints since they both meet in the center slot
+                    if (r === this.maxRounds - 1) return n.matchSlot === 0;
+                    
+                    // FIX: Round 0 is already paired, deeper rounds group via division
+                    const targetSlot = (r === 0) ? node.matchSlot : Math.floor(node.matchSlot / 2);
+                    return n.isLeft === node.isLeft && n.matchSlot === targetSlot;
                 });
+                
+                if (targetNode) {
+                    let color = 'rgba(100, 100, 100, 0.2)';
+                    let lineWidth = 1.5;
+
+                    // Only light up white if the active match belongs to the current visual round tier
+                    const isNodeActive = (r === this.currentVisualRound) && node.glyph && (node.glyph.name === activeP1Name || node.glyph.name === activeP2Name);
+                    const isTargetActive = targetNode.glyph && (targetNode.glyph.name === activeP1Name || targetNode.glyph.name === activeP2Name);
+
+                    if (isNodeActive && isTargetActive) {
+                        color = '#FFFFFF';
+                        lineWidth = 3;
+                    } else if (node.glyph && targetNode.glyph && node.glyph.name === targetNode.glyph.name) {
+                        color = node.glyph.intrinsicColor || '#42f485';
+                        lineWidth = 2;
+                    }
+
+                    ctx.beginPath();
+                    ctx.strokeStyle = color;
+                    ctx.lineWidth = lineWidth;
+                    ctx.moveTo(node.x, node.y);
+                    ctx.lineTo(targetNode.x, node.y);
+                    ctx.lineTo(targetNode.x, targetNode.y);
+                    ctx.stroke();
+                }
+            });
+        }
+
+        // 2. Draw nodes over top of lines
+        this.bracketStructure.forEach((round, rIndex) => {
+            round.forEach(node => {
+                const glyphExists = node.glyph !== null;
+                const isActive = glyphExists && (node.glyph.name === activeP1Name || node.glyph.name === activeP2Name);
+
+                ctx.beginPath();
+                ctx.arc(node.x, node.y, rIndex === this.maxRounds ? 14 : 6, 0, Math.PI * 2);
+                
+                ctx.fillStyle = glyphExists ? (node.glyph.intrinsicColor || "#42f485") : "#222222";
+                ctx.strokeStyle = isActive ? "#FFFFFF" : "rgba(100, 100, 100, 0.5)";
+                ctx.lineWidth = isActive ? 2 : 1;
+                
+                ctx.shadowBlur = isActive ? 15 : 0;
+                ctx.shadowColor = glyphExists ? (node.glyph.intrinsicColor || "#FFF") : "#FFF";
+                ctx.fill();
+                ctx.stroke();
+                ctx.shadowBlur = 0;
+
+                if (rIndex === 0 || rIndex === this.maxRounds) {
+                    if (glyphExists) {
+                        ctx.fillStyle = "#FFFFFF";
+                        ctx.font = "bold 10px 'Courier New'";
+                        ctx.textAlign = node.isLeft ? "right" : "left";
+                        
+                        let offset = node.isLeft ? -14 : 14;
+                        if (rIndex === this.maxRounds) {
+                            ctx.textAlign = "center";
+                            offset = 0;
+                            ctx.fillText(node.glyph.name.substring(0, 12), node.x, node.y - 20);
+                        } else {
+                            ctx.fillText(node.glyph.name.substring(0, 12), node.x + offset, node.y + 4);
+                        }
+                    }
+                }
             });
         });
-
-        // 2. Render Active Combatants Overlay
-        if (activeP1Name && activeP2Name) {
-            ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
-            ctx.font = "bold 12px 'Courier New'";
-            ctx.textAlign = "center";
-            ctx.fillText(`LIVE MATCH: ${activeP1Name} VS ${activeP2Name}`, w / 2, h - 20);
-            ctx.textAlign = "start"; 
-        }
-
-        // 3. Render Grand Champion Showcase
-        if (this.grandChampion) {
-            const cx = w / 2;
-            const cy = h / 2;
-
-            ctx.beginPath();
-            ctx.arc(cx, cy, 22, 0, Math.PI * 2);
-            ctx.strokeStyle = this.grandChampion.intrinsicColor || "#FFD700";
-            ctx.lineWidth = 4;
-            ctx.shadowBlur = 20;
-            ctx.shadowColor = this.grandChampion.intrinsicColor || "#FFD700";
-            ctx.stroke();
-            ctx.shadowBlur = 0; 
-
-            ctx.fillStyle = "#FFD700";
-            ctx.font = "bold 13px 'Courier New'";
-            ctx.textAlign = "center";
-            ctx.fillText("GRAND CHAMPION", cx, cy - 32);
-            ctx.fillStyle = "#FFF";
-            ctx.fillText(this.grandChampion.name, cx, cy + 38);
-            ctx.textAlign = "start";
-        }
     }
 }
 
