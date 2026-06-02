@@ -1,6 +1,6 @@
 class Match{
 
-    constructor(glyphA, glyphB, designation, rounds, frameDelay){
+    constructor(glyphA, glyphB, designation, rounds, frameDelay, tournamentId = null){
 
         this.designation = designation;
         this.currentRound = 1;
@@ -11,6 +11,8 @@ class Match{
 
         this.algorithm = "Adversarial Conway";
         this.mode = "Combative"
+
+        this.tournamentId = tournamentId;
 
         this.glyphA = this.findGlyphByName(GlyphRegistry, glyphA);
         this.glyphB = this.findGlyphByName(GlyphRegistry, glyphB);
@@ -136,99 +138,6 @@ class Match{
 
     }
 
-    runOld(){
-
-        const arenaGridSize = 96; 
-        arena = new ArenaEngine("canvasA", 600, 300, arenaGridSize); 
-
-        this.repeatValue = Math.floor(Math.random() * 1000000);
-        arena.setSeed(this.repeatValue);
-        document.getElementById("round-seed").innerText = this.repeatValue;
-
-        unit1.resetToOrigin();
-        unit2.resetToOrigin();
-
-        document.getElementById("iteration1").style.color = "#ffffff";
-        document.getElementById("iteration2").style.color = "#ffffff";
-
-        //  Estimate spatial and temporal envelope of the match to initialize analytics
-        maxMatchLength = Math.max(this.glyphA.gen, this.glyphB.gen);
-        totalCells = arena.rows * arena.cols;
-        initializeAnalytics();
-
-        if (duelInterval) clearInterval(duelInterval);
-
-        duelInterval = setInterval(() => {
-
-            // 1. Evolve the internal DNA of each Glyph
-            const p1Active = unit1.computeNextGeneration();
-            const p2Active = unit2.computeNextGeneration();
-
-            this.updateUI();
-
-            if (!p1Active) { document.getElementById('iteration1').style.color = "#ff4444"; }
-            if (!p2Active) { document.getElementById('iteration2').style.color = "#ff4444"; }   
-            
-            // STOP CONDITION: The round is over once both Glyphs have reached their respective halting state
-            if (!unit1.isActive && !unit2.isActive) {
-                clearInterval(duelInterval); 
-                duelInterval = null;                
-                
-                arena.render(unit1.intrinsicColor, unit2.intrinsicColor); // Run one last render to show the final state
-
-                this.calcScore();
-                roundGraph1.record(score.p1, score.p2);
-                roundGraph2.record(score.p2, score.p1);
-
-                this.matchRoundData.push({
-                    round_number: this.currentRound,
-                    round_seed: this.repeatValue,
-                    p1_final_score: score.p1,
-                    p2_final_score: score.p2,
-                    total_iterations: maxMatchLength
-                });
-                // console.log("[control.js] Match.run(): this.matchRoundData = [" + this.matchRoundData + "].");
-
-                if (this.currentRound < this.totalRounds) {
-                    document.getElementById('gamestatus').innerText = `ROUND ${this.currentRound} COMPLETE - WAITING...`;
-                    this.currentRound++;
-
-                    let waitBetweenRounds = 3000;
-                    setTimeout(() => { this.run(); }, waitBetweenRounds);
-                } else {
-                    document.getElementById('gamestatus').innerText = "MATCH COMPLETE";                    
-                    this.saveMatchToDatabase();
-                    this.matchRoundData = [];
-                }
-
-                renderAnalytics();
-                return;
-
-            }
-
-            arena.applyJitter();
-
-            // 2. Project ("stamp") the current Glyph configuration onto the Arena
-            arena.stamp(unit1, 1);
-            arena.stamp(unit2, 2);
-
-            // 3. Render the individual Glyphs
-            unit1.render();
-            unit2.render();
-
-            // 4. Render the Arena with the updated projection
-            arena.render(unit1.intrinsicColor, unit2.intrinsicColor);
-            score = arena.calculateScore();
-            document.getElementById('points1').innerText = score.p1;
-            document.getElementById('points2').innerText = score.p2;
-
-            // 5. Render Analytics
-            renderAnalytics();
-
-        }, this.frameDelay);
-
-    }
-
     initUI(){
 
         document.getElementById("matchID").innerText = this.designation;
@@ -303,6 +212,7 @@ class Match{
             match_designation: this.designation.toUpperCase(),
             p1_glyph_name: this.glyphA.name,
             p2_glyph_name: this.glyphB.name,
+            tournament_id: this.tournamentId,
             grid_size: 16,
             arena_width: 640,
             arena_height: 320,

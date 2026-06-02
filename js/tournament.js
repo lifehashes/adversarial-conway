@@ -6,6 +6,7 @@ class Tournament {
         this.results = [];
         this.currentMatchIndex = 0;
         this.standings = {};
+        this.dbTourneyId = null;
 
         this.init();
     }
@@ -66,6 +67,40 @@ class Tournament {
 
     }
 
+    async startTournament(){
+        console.log("[tournament.js] Initializing master tournament entry...");
+        
+        const tournamentName = document.getElementById("matchNameInput").value.trim() || "Automated Round Robin";
+        
+        try {
+            // 1. Ping save_tournament.php FIRST to create the parent row
+            const response = await fetch('php/save_tournament.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: tournamentName,
+                    mode: 'bracket' // or pull from a select dropdown if you add one
+                })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                // 2. Capture the real, auto-incremented ID from your DB schema
+                this.dbTourneyId = result.tournament_id;
+                console.log("[tournament.js] Database tournament registered successfully. ID: " + this.dbTourneyId);
+                
+                // 3. NOW it is safe to kick off your async match loops!
+                this.runTournament();
+            } else {
+                console.error("[tournament.js] Database rejected tournament creation: ", result.error);
+            }
+
+        } catch (error) {
+            console.error("[tournament.js] Network failure initializing tournament: ", error);
+        }
+    }
+
     async runTournament(){
 
         let mI = this.currentMatchIndex;
@@ -78,9 +113,10 @@ class Tournament {
 
             const glyphA = this.getNextMatch().p1.name;
             const glyphB = this.getNextMatch().p2.name;
-            const executionName = document.getElementById("matchNameInput").value.trim() || "UNNAMED_ENGAGEMENT";
+            let executionName = document.getElementById("matchNameInput").value.trim() || "UNNAMED_ENGAGEMENT";
+            executionName = executionName + "_M_" + mI;
 
-            let myMatch = new Match(glyphA, glyphB, executionName, totalRounds, frameDelay);
+            let myMatch = new Match(glyphA, glyphB, executionName, totalRounds, frameDelay, this.dbTourneyId);
 
             await myMatch.run();
             await new Promise(resolve => setTimeout(resolve, waitBetweenMatches));
