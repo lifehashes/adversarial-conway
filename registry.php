@@ -1,10 +1,6 @@
 <?php
 include_once __DIR__ . '/../../priv/db_conf_laniakea.php';
 
-// Assuming your db_conf_laniakea.php file initializes a $pdo connection variable.
-// If it only defines constants, uncomment the line below to establish the PDO connection:
-// $pdo = new PDO("mysql:host=" . MYSQL_HOST . ";dbname=" . MYSQL_DATABASE . ";charset=utf8mb4", MYSQL_USER, MYSQL_PASSWORD, [PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC]);
-
 // 1. Parameters (Search, Sort, Pagination)
 $search = isset($_GET['search']) ? $_GET['search'] : '';
 $sort_by = isset($_GET['sort']) ? $_GET['sort'] : 'ATTEMPT';
@@ -41,8 +37,6 @@ $sql = "SELECT BATTLE_NAME, ATTEMPT, BIN, HASH, ITERATIONS, TERMINAL,
 
 $stmt = $pdo->prepare($sql);
 
-// PDO handles integer parameters for LIMIT/OFFSET perfectly when we explicitly bind them,
-// or if PDO::ATTR_EMULATE_PREPARES is set to false. To remain bulletproof across setups:
 if ($search !== '') {
     $stmt->bindValue(1, $search_param, PDO::PARAM_STR);
     $stmt->bindValue(2, $search_param, PDO::PARAM_STR);
@@ -390,11 +384,11 @@ function openModal(card) {
         .then(response => response.json())
         .then(res => {
             if (res.success) {
-                let efficiencyColor = '#8a9698'; // Default muted gray
+                let efficiencyColor = '#8a9698';
                 if (res.efficiency_index >= 3.0) {
-                    efficiencyColor = '#ff5722'; // Neon Orange/Red for "Elite Threat"
+                    efficiencyColor = '#ff5722';
                 } else if (res.efficiency_index >= 1.5) {
-                    efficiencyColor = '#cfd8dc'; // Bright white/silver for "Optimal"
+                    efficiencyColor = '#cfd8dc';
                 }
                 // Construct clean tech-readout style items inside advanced analytics including the new efficiency coefficient
                 dynamicContainer.innerHTML = `
