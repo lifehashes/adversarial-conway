@@ -1,252 +1,215 @@
-class Match{
+/* MODAL CONTROL */
 
-    constructor(glyphA, glyphB, designation, rounds, frameDelay, tournamentId = null){
+function openUnifiedConfig() {
+    resetUI(0);
+    document.getElementById('unifiedConfigModal').style.display = 'flex';
+}
 
-        this.designation = designation;
-        this.currentRound = 1;
-        this.totalRounds = rounds;
-        this.repeatValue = null;
+function switchMode(mode) {
+    currentActiveMode = mode;
+    const singlePanel = document.getElementById('panel-single-match');
+    const tourneyPanel = document.getElementById('panel-tournament');
+    
+    if (mode === 'single') {
+        document.getElementById('radio-single').checked = true;
+        singlePanel.style.borderColor = 'var(--accent-green)';
+        singlePanel.style.background = 'rgba(0,255,0,0.02)';
+        singlePanel.querySelector('.mode-dependent-content').style.opacity = '1';
+        singlePanel.querySelector('.mode-dependent-content').style.pointerEvents = 'auto';
 
-        this.frameDelay = frameDelay;
+        tourneyPanel.style.borderColor = '#222';
+        tourneyPanel.style.background = 'rgba(0,0,0,0.2)';
+        tourneyPanel.querySelector('.mode-dependent-content').style.opacity = '0.4';
+        tourneyPanel.querySelector('.mode-dependent-content').style.pointerEvents = 'none';
 
-        this.algorithm = "Adversarial Conway";
-        this.mode = "Combative"
+        setTournamentN(2);
+    } else {
+        document.getElementById('radio-tournament').checked = true;
+        tourneyPanel.style.borderColor = 'var(--accent-green)';
+        tourneyPanel.style.background = 'rgba(0,255,0,0.02)';
+        tourneyPanel.querySelector('.mode-dependent-content').style.opacity = '1';
+        tourneyPanel.querySelector('.mode-dependent-content').style.pointerEvents = 'auto';
 
-        this.tournamentId = tournamentId;
-
-        this.glyphA = this.findGlyphByName(GlyphRegistry, glyphA);
-        this.glyphB = this.findGlyphByName(GlyphRegistry, glyphB);
-
-        if (this.glyphA){ unit1.loadFromBinary(this.glyphA.bin); } else { console.log("[control.js] Match constructor(): Glyph '" + glyphA + "' not found!"); }
-        if (this.glyphB){ unit2.loadFromBinary(this.glyphB.bin); } else { console.log("[control.js] Match constructor(): Glyph '" + glyphB + "' not found!"); }      
-
-        this.matchScore = { p1: 0, p2: 0 };
-        this.roundsWonByGlyph = { p1: 0, p2: 0 };
-        this.matchRoundData = [];
-
-        this.initUI();
-
+        singlePanel.style.borderColor = '#222';
+        singlePanel.style.background = 'rgba(0,0,0,0.2)';
+        singlePanel.querySelector('.mode-dependent-content').style.opacity = '0.4';
+        singlePanel.querySelector('.mode-dependent-content').style.pointerEvents = 'none';
     }
+}
 
-    findGlyphByName(glyphArray, targetName) {
-        return glyphArray.find(glyph => {
-            return glyph.name.toLowerCase() === targetName.toLowerCase();
-        });
-    }
-
-    run(){
-
-        return new Promise((resolve) => {
-
-            const executeRound = () => {
-
-                const arenaGridSize = 96; 
-                arena = new ArenaEngine("canvasA", 600, 300, arenaGridSize); 
-
-                this.repeatValue = Math.floor(Math.random() * 1000000);
-                arena.setSeed(this.repeatValue);
-                document.getElementById("round-seed").innerText = this.repeatValue;
-
-                unit1.resetToOrigin();
-                unit2.resetToOrigin();
-
-                document.getElementById("iteration1").style.color = "#ffffff";
-                document.getElementById("iteration2").style.color = "#ffffff";
-
-                //  Estimate spatial and temporal envelope of the match to initialize analytics
-                maxMatchLength = Math.max(this.glyphA.gen, this.glyphB.gen);
-                totalCells = arena.rows * arena.cols;
-                initializeAnalytics();
-
-                if (duelInterval) clearInterval(duelInterval);
-
-                duelInterval = setInterval(() => {
-
-                    // 1. Evolve the Glyph
-                    const p1Active = unit1.computeNextGeneration();
-                    const p2Active = unit2.computeNextGeneration();
-
-                    this.updateUI();
-
-                    if (!p1Active) { document.getElementById('iteration1').style.color = "#ff4444"; }
-                    if (!p2Active) { document.getElementById('iteration2').style.color = "#ff4444"; }   
-                    
-                    // STOP CONDITION: The round is over once both Glyphs have reached their respective halting state
-                    if (!unit1.isActive && !unit2.isActive) {
-                        clearInterval(duelInterval); 
-                        duelInterval = null;                
-                        
-                        arena.render(unit1.intrinsicColor, unit2.intrinsicColor); // Run one last render to show the final state
-
-                        this.calcScore();
-                        roundGraph1.record(score.p1, score.p2);
-                        roundGraph2.record(score.p2, score.p1);
-
-                        this.matchRoundData.push({
-                            round_number: this.currentRound,
-                            round_seed: this.repeatValue,
-                            p1_final_score: score.p1,
-                            p2_final_score: score.p2,
-                            total_iterations: maxMatchLength
-                        });
-                        // console.log("[control.js] Match.run(): this.matchRoundData = [" + this.matchRoundData + "].");
-
-                        if (this.currentRound < this.totalRounds) {
-                            document.getElementById('gamestatus').innerText = `ROUND ${this.currentRound} COMPLETE - WAITING...`;
-                            this.currentRound++;
-
-                            let waitBetweenRounds = 3000;
-                            setTimeout(() => { executeRound(); }, waitBetweenRounds);
-                        } else {
-                            document.getElementById('gamestatus').innerText = "MATCH COMPLETE";                    
-                            this.saveMatchToDatabase();
-                            this.matchRoundData = [];
-                            resolve();
-                        }
-
-                        renderAnalytics();
-                        return;
-
-                    }
-
-                    arena.applyJitter();
-
-                    // 2. Project ("stamp") the current Glyph configuration onto the Arena
-                    arena.stamp(unit1, 1);
-                    arena.stamp(unit2, 2);
-
-                    // 3. Render the individual Glyphs
-                    unit1.render();
-                    unit2.render();
-
-                    // 4. Render the Arena with the updated projection
-                    arena.render(unit1.intrinsicColor, unit2.intrinsicColor);
-                    score = arena.calculateScore();
-                    document.getElementById('points1').innerText = score.p1;
-                    document.getElementById('points2').innerText = score.p2;
-
-                    // 5. Render Analytics
-                    renderAnalytics();
-
-                }, this.frameDelay);
-
-            };
-
-            executeRound(); // kicking off the first round internally
-
-        });
-
-    }
-
-    initUI(){
-
-        document.getElementById("matchID").innerText = this.designation;
-        document.getElementById("total-rounds-display").innerText = this.totalRounds;
-        document.getElementById("algo").innerText = this.algorithm;
-        document.getElementById("algo-mode").innerText = this.mode;
-
-        document.getElementById("name1").innerText = this.glyphA.name;
-        document.getElementById("spec-gen1").innerText = this.glyphA.gen;
-        document.getElementById("spec-peak1").innerText = this.glyphA.peak;
-        document.getElementById("spec-max1").innerText = this.glyphA.max;
-        document.getElementById("spec-min1").innerText = this.glyphA.min;
-        document.getElementById("originHash1").innerText = "0x" + this.glyphA.originHash.substring(0, 16) + "...";
-
-        document.getElementById("name2").innerText = this.glyphB.name;
-        document.getElementById("spec-gen2").innerText = this.glyphB.gen;
-        document.getElementById("spec-peak2").innerText = this.glyphB.peak;
-        document.getElementById("spec-max2").innerText = this.glyphB.max;
-        document.getElementById("spec-min2").innerText = this.glyphB.min;
-        document.getElementById("originHash2").innerText = "0x" + this.glyphB.originHash.substring(0, 16) + "...";
-
-    }
-
-    updateUI(){
-
-        document.getElementById('iteration1').innerText = unit1.iteration;
-        document.getElementById('currentHash1').innerText = "0x" + unit1.currentHash.substring(0, 16) + "...";
-
-        document.getElementById('iteration2').innerText = unit2.iteration;
-        document.getElementById('currentHash2').innerText = "0x" + unit2.currentHash.substring(0, 16) + "...";
-
-        document.getElementById('current-round-display').innerText = this.currentRound;
-        document.getElementById('gamestatus').innerText = `ROUND ${this.currentRound} IN PROGRESS...`;
-
-    }
-
-    calcScore(){
-
-        const finalRoundScore = arena.calculateScore();
-        this.matchScore.p1 += finalRoundScore.p1;
-        this.matchScore.p2 += finalRoundScore.p2;
-
-        if (this.matchScore.p1 == this.matchScore.p2){
-            document.getElementById("high-score-p1").style.color = "#ffffff";
-            document.getElementById("high-score-p1").style.color = "#ffffff";
+function setTournamentN(n) {
+    selectedTournamentN = n;
+    document.querySelectorAll('.dynamic-n-btn').forEach(btn => {
+        if(parseInt(btn.getAttribute('data-n')) === n) {
+            btn.style.borderColor = 'var(--accent-green)';
+            btn.style.color = 'var(--accent-green)';
         } else {
-            if (this.matchScore.p1 > this.matchScore.p2){
-                document.getElementById("high-score-p1").style.color = "var(--accent-green)";
-                document.getElementById("high-score-p2").style.color = "#404040";
+            btn.style.borderColor = '';
+            btn.style.color = '';
+        }
+    });
+}
+
+function setTotalRounds(count, btn) {
+    totalRounds = count;    
+    document.querySelectorAll('.round-opt').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected'); // UI highlight for selected button      
+}
+
+function closeUnifiedConfig() {
+    document.getElementById('unifiedConfigModal').style.display = 'none';
+
+    const selectedTourneyVariant = document.getElementById("tournament-variant-select").value;
+    openTourneyConfig(selectedTournamentN, currentActiveMode, selectedTourneyVariant);
+}
+
+function getFilteredPool() {
+    const minGen = parseInt(document.getElementById('filter-gen-min').value) || 0;
+    const maxGen = parseInt(document.getElementById('filter-gen-max').value) || Infinity;
+    const minPeak = parseInt(document.getElementById('filter-peak-min').value) || 0;
+    const maxPeak = parseInt(document.getElementById('filter-peak-max').value) || Infinity;
+    const hashPrefix = document.getElementById('filter-hash-prefix').value.trim().toLowerCase();
+
+    return GlyphRegistry.filter(g => {
+        if (g.gen < minGen || g.gen > maxGen) return false;
+        if (g.peak < minPeak || g.peak > maxPeak) return false;
+        // Basic structural hook placeholder checking binary stream patterns
+        if (hashPrefix && !g.name.toLowerCase().startsWith(hashPrefix)) return false; 
+        return true;
+    });
+}
+
+function openTourneyConfig(N, mode, variant){
+
+    // 0. Set up the selection screen
+    const modal = document.getElementById('tournament-modal');
+    const container = document.getElementById('modal-canvas-container');
+    container.innerHTML = ''; // Clear previous    
+    modal.style.display = 'flex';
+    const centerX = container.offsetWidth / 2;
+    const centerY = container.offsetHeight / 2;
+    const radius = Math.min(centerX, centerY) * 1.2;
+
+    // 1a. Copy the GlyphRegistry to create a pool, then apply Fisher-Yates Shuffle to randomize it
+    activeTournamentPool = getFilteredPool();
+    for (let i = activeTournamentPool.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [activeTournamentPool[i], activeTournamentPool[j]] = [activeTournamentPool[j], activeTournamentPool[i]];
+    }
+
+    // 1b. Select N entries from the randomized pool
+    activeTournamentPool = activeTournamentPool.slice(0, N);
+
+    modalEngines = []; // this is where we will instantiate the individual Game of Life engines to preview the Glyphs
+
+    activeTournamentPool.forEach((glyph, i) => {
+
+        let canvasId = null;
+        let canvas = null;
+        let label = null;
+
+        if (variant == 'round-robin'){
+
+            // 1. Calculate position on the Polygon
+            const angle = (i / N) * Math.PI * 2 - (Math.PI / 2);
+            const x = centerX + radius * Math.cos(angle);
+            const y = centerY + radius * Math.sin(angle);
+
+            // 2. Create Canvas Element
+            canvasId = `modal-canvas-${i}`;
+            canvas = document.createElement('canvas');
+            canvas.id = canvasId;
+            canvas.className = 'modal-glyph-canvas';
+            canvas.width = 120; // Size of the mini-display
+            canvas.height = 120;
+            canvas.style.left = `${x}px`;
+            canvas.style.top = `${y}px`;        
+            container.appendChild(canvas);
+
+            // 3. Append labels
+            label = document.createElement('div');
+            label.className = 'modal-glyph-label';    
+            label.style.left = `${x}px`; // Offset the label based on the same X, Y as the canvas
+            label.style.top = `${y}px`;
+
+            if (x > centerX) {
+                label.style.transform = 'translate(65px, -50%)';
+                label.style.alignItems = 'flex-start';
+                label.style.borderLeft = `3px solid ${glyph.intrinsicColor || "#42f485"}`;
+                label.style.borderRight = 'none';
             } else {
-                document.getElementById("high-score-p1").style.color = "#404040";
-                document.getElementById("high-score-p2").style.color = "var(--accent-green)";
+                label.style.transform = 'translate(-100%, -50%)';
+                label.style.left = `${x - 65}px`; // Shift it left of the canvas
+                label.style.alignItems = 'flex-end';
+                label.style.textAlign = 'right';
+                label.style.borderRight = `3px solid ${glyph.intrinsicColor || "#42f485"}`;
+                label.style.borderLeft = 'none';
             }
+
         }
 
-        if (finalRoundScore.p1 > finalRoundScore.p2){
-            this.roundsWonByGlyph.p1 += 1;
-            document.getElementById("rounds-won-p1").innerText = this.roundsWonByGlyph.p1;
-        } else {
-            this.roundsWonByGlyph.p2 += 1;
-            document.getElementById("rounds-won-p2").innerText = this.roundsWonByGlyph.p2;
-        }                    
+        if (variant == 'knock-out'){}
 
-        document.getElementById('match-p1').innerText = this.matchScore.p1;
-        document.getElementById('match-p2').innerText = this.matchScore.p2;
+        // 4. Inject the Data
+        label.innerHTML = `
+            <h3>${glyph.name}</h3>
+            <div class="modal-glyph-stats">
+                <span>G:<span class="stat-val">${glyph.gen}</span></span>
+                <span>P:<span class="stat-val">${glyph.peak}</span></span>
+                <span>MN:<span class="stat-val">${glyph.min}</span></span>
+                <span>MX:<span class="stat-val">${glyph.max}</span></span>
+            </div>
+        `;
 
-    }
+        // Apply the glyph's unique color to the border
+        label.style.borderLeftColor = glyph.intrinsicColor || "#42f485";
 
-    saveMatchToDatabase() {
-        const payload = {
-            tournament_id: (currentActiveMode === 'tournament') ? 1 : null, // Set context id if applicable
-            match_designation: this.designation.toUpperCase(),
-            p1_glyph_name: this.glyphA.name,
-            p2_glyph_name: this.glyphB.name,
-            tournament_id: this.tournamentId,
-            grid_size: 16,
-            arena_width: 640,
-            arena_height: 320,
-            game_mode: this.mode,
-            total_rounds_configured: this.totalRounds,
-            p1_rounds_won: this.roundsWonByGlyph.p1,
-            p2_rounds_won: this.roundsWonByGlyph.p2,
-            rounds: this.matchRoundData
-        };
+        container.appendChild(label);
 
-        console.log("[DATABASE API] Dispatched payload packet:", payload);
+        // 5. Initialize the LifeEngine 
+        const engine = new LifeEngine(canvasId, 16);
+        engine.intrinsicColor = glyph.intrinsicColor || "#42f485";
+        engine.loadFromBinary(glyph.bin);        
+        modalEngines.push(engine);
 
-        // 2. Dispatch data packet asynchronously via HTTP POST straight to your target script endpoint
-        fetch('php/save_match.php', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(payload) // Convert the native javascript object into a clean JSON string stream
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                console.log(`%c[DATABASE API] SUCCESS: Saved match safely under ID ${data.match_id || 'N/A'}`, 'color: #00aa00;');
-            } else {
-                console.error("[DATABASE API] SERVER REJECTION:", data.error);
+        let lastTime = 0;
+        const throttleSpeed = 50; // The delay in milliseconds. Higher = Slower.
+        animateModalPreview();
+
+        function animateModalPreview(timestamp) {
+            // 1. Check if the modal is still open
+            const modal = document.getElementById('tournament-modal');
+            if (!modal || modal.style.display === 'none') return;
+
+            // 2. Calculate how much time has passed since the last update
+            const deltaTime = timestamp - lastTime;
+
+            // 3. Only update the LifeEngine logic if enough time has elapsed
+            if (deltaTime > throttleSpeed) {
+                modalEngines.forEach(engine => {
+                    engine.computeNextGeneration(); 
+                    engine.render(); 
+                });
+                lastTime = timestamp; // Reset the timer
             }
-        })
-        .catch(error => {
-            console.error("[DATABASE API] NETWORK EXCEPTION PROTOCOL CRASHED:", error);
-        });
-    }
+
+            // 4. Keep the loop running smoothly
+            requestAnimationFrame(animateModalPreview);
+        }
+
+    });
 
 }
+
+function populateTourneyConfig(){
+}
+
+function closeTourneyConfig(){
+    document.getElementById('tournament-modal').style.display = 'none';
+    executeSystemEngagement();
+}
+
+/* U.I. CONTROL */
 
 function resetUI(){
 
@@ -337,24 +300,11 @@ function resetUI(){
 
 }
 
-function openUnifiedConfig() {
-    resetUI(0);
-    document.getElementById('unifiedConfigModal').style.display = 'flex';
-}
-
-function setTotalRounds(count, btn) {
-    totalRounds = count;    
-    document.querySelectorAll('.round-opt').forEach(b => b.classList.remove('selected'));
-    btn.classList.add('selected'); // UI highlight for selected button      
-}
-
-function closeUnifiedConfig() {
-    document.getElementById('unifiedConfigModal').style.display = 'none';
-}
+/* ANALYTICS CONTROL */
 
 function initializeAnalytics(){
 
-        // console.log("[control.js] initializeAnalytics(): Done.");
+        // console.log("[match.js] initializeAnalytics(): Done.");
         clearAnalytics();
 
         if (!profile1) profile1 = new CellProfileGraph("cellProfile1", maxMatchLength);
@@ -390,7 +340,7 @@ function initializeAnalytics(){
 
 function renderAnalytics(){
 
-    // console.log("[control.js] renderAnalytics(): Doing ma thang!");
+    // console.log("[match.js] renderAnalytics(): Doing ma thang!");
 
     unifiedGraph.record(score.p1, score.p2);
     unifiedGraph.render(unit1.intrinsicColor, unit2.intrinsicColor);

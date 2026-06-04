@@ -16,7 +16,7 @@ $glyphs = $stmt->fetchAll();
     <SCRIPT SRC="js/adv-conw-hash.js"></SCRIPT>
     <SCRIPT SRC="js/analytics.js"></SCRIPT>
     <SCRIPT SRC="js/control.js"></SCRIPT>
-    <SCRIPT SRC="js/tournament.js"></SCRIPT>    
+    <SCRIPT SRC="js/matches.js"></SCRIPT>    
 </head>
 <body>
 
@@ -167,7 +167,7 @@ $glyphs = $stmt->fetchAll();
 
         let currentActiveMode = 'single'; // 'single' or 'tournament'
         let targetPickerSlot = 1;
-        let selectedTournamentN = 4;
+        let selectedTournamentN = 2;
         let activeTournamentPool = [];
         let TourneyHalleck = null; // the master of the revels overseeing the tournaments
         let matchIndex = null;
@@ -221,52 +221,6 @@ $glyphs = $stmt->fetchAll();
 
         }
 
-        function switchMode(mode) {
-            currentActiveMode = mode;
-            const singlePanel = document.getElementById('panel-single-match');
-            const tourneyPanel = document.getElementById('panel-tournament');
-            
-            if (mode === 'single') {
-                document.getElementById('radio-single').checked = true;
-                singlePanel.style.borderColor = 'var(--accent-green)';
-                singlePanel.style.background = 'rgba(0,255,0,0.02)';
-                singlePanel.querySelector('.mode-dependent-content').style.opacity = '1';
-                singlePanel.querySelector('.mode-dependent-content').style.pointerEvents = 'auto';
-
-                tourneyPanel.style.borderColor = '#222';
-                tourneyPanel.style.background = 'rgba(0,0,0,0.2)';
-                tourneyPanel.querySelector('.mode-dependent-content').style.opacity = '0.4';
-                tourneyPanel.querySelector('.mode-dependent-content').style.pointerEvents = 'none';
-            } else {
-                document.getElementById('radio-tournament').checked = true;
-                tourneyPanel.style.borderColor = 'var(--accent-green)';
-                tourneyPanel.style.background = 'rgba(0,255,0,0.02)';
-                tourneyPanel.querySelector('.mode-dependent-content').style.opacity = '1';
-                tourneyPanel.querySelector('.mode-dependent-content').style.pointerEvents = 'auto';
-
-                singlePanel.style.borderColor = '#222';
-                singlePanel.style.background = 'rgba(0,0,0,0.2)';
-                singlePanel.querySelector('.mode-dependent-content').style.opacity = '0.4';
-                singlePanel.querySelector('.mode-dependent-content').style.pointerEvents = 'none';
-            }
-        }
-
-        function getFilteredPool() {
-            const minGen = parseInt(document.getElementById('filter-gen-min').value) || 0;
-            const maxGen = parseInt(document.getElementById('filter-gen-max').value) || Infinity;
-            const minPeak = parseInt(document.getElementById('filter-peak-min').value) || 0;
-            const maxPeak = parseInt(document.getElementById('filter-peak-max').value) || Infinity;
-            const hashPrefix = document.getElementById('filter-hash-prefix').value.trim().toLowerCase();
-
-            return GlyphRegistry.filter(g => {
-                if (g.gen < minGen || g.gen > maxGen) return false;
-                if (g.peak < minPeak || g.peak > maxPeak) return false;
-                // Basic structural hook placeholder checking binary stream patterns
-                if (hashPrefix && !g.name.toLowerCase().startsWith(hashPrefix)) return false; 
-                return true;
-            });
-        }
-
         function openGlyphPicker(slot) {
             targetPickerSlot = slot;
             const pool = getFilteredPool();
@@ -318,50 +272,29 @@ $glyphs = $stmt->fetchAll();
             }
         }
 
-        function setTournamentN(n) {
-            selectedTournamentN = n;
-            document.querySelectorAll('.dynamic-n-btn').forEach(btn => {
-                if(parseInt(btn.getAttribute('data-n')) === n) {
-                    btn.style.borderColor = 'var(--accent-green)';
-                    btn.style.color = 'var(--accent-green)';
-                } else {
-                    btn.style.borderColor = '';
-                    btn.style.color = '';
-                }
-            });
-        }
-
-        function autoFillTournamentGlyphs() {
-            const pool = getFilteredPool();
-            if(pool.length < selectedTournamentN) {
-                alert(`INSUFFICIENT DATA POOL: Requested ${selectedTournamentN} matching entities, but filters only returned ${pool.length}.`);
-                return;
-            }
-            // Shuffler routine parsing parameters
-            let mixed = [...pool].sort(() => 0.5 - Math.random());
-            activeTournamentPool = mixed.slice(0, selectedTournamentN);
-            console.log(`Tournament configuration array filled with ${selectedTournamentN} units via Layer 1 logic maps.`);
-        }
-
         function executeSystemEngagement() {
+
+            let myGlyphSelection = "";
+            activeTournamentPool.forEach((glyph) => { myGlyphSelection = myGlyphSelection + glyph.name + " " });
+            console.log("[index.php] executeSystemEngagement(): activeTournamentPool = " + myGlyphSelection);
          
             const frameDelay = document.getElementById("engine-throttle-select").value;
-            const selectedTourneyMode = document.getElementById("tournament-mode-select").value;
+            const selectedTourneyVariant = document.getElementById("tournament-variant-select").value;
 
             if (currentActiveMode === 'single') {
 
-                const glyphA = document.getElementById("ui-selected-p1").innerText;
-                const glyphB = document.getElementById("ui-selected-p2").innerText;
-                const executionName = document.getElementById("matchNameInput").value.trim() || "UNNAMED_ENGAGEMENT";
+                const glyphA = activeTournamentPool[0].name;
+                const glyphB = activeTournamentPool[1].name;                
 
                 document.getElementById('unifiedConfigModal').style.display = 'none';
+                const executionName = document.getElementById("matchNameInput").value.trim() || "UNNAMED_ENGAGEMENT";
                 let myMatch = new Match(glyphA, glyphB, executionName, totalRounds, frameDelay);
                 myMatch.run();
 
             } else {
 
                 document.getElementById('unifiedConfigModal').style.display = 'none';
-                TourneyHalleck = new Tournament(activeTournamentPool, selectedTourneyMode);
+                TourneyHalleck = new Tournament(activeTournamentPool, selectedTourneyVariant);
                 TourneyHalleck.startTournament();
 
             }

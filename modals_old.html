@@ -29,8 +29,8 @@
     <div class="modal-window" style="max-width: 850px; width: 95%; display: flex; flex-direction: column; gap: 20px; font-family: 'Courier New', monospace; border-color: var(--frame-grey);">
         
         <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; padding-bottom: 10px;">
-            <h2 style="color: var(--accent-green); margin: 0; letter-spacing: 2px;">COMPETITION SETUP</h2>
-            <div style="font-size: 0.75rem; color: var(--frame-grey);">SECURE LINK ESTABLISHED</div>
+            <h2 style="color: var(--accent-green); margin: 0; letter-spacing: 2px;">SYSTEM ENGAGEMENT ARCHITECTURE</h2>
+            <div style="font-size: 0.75rem; color: var(--frame-grey);">SECURE LINK</div>
         </div>
 
         <div style="background: rgba(255,255,255,0.02); border: 1px solid #222; padding: 15px;">
@@ -44,14 +44,14 @@
                     </div>
                 </div>
                 <div>
-                    <label style="font-size: 0.7rem; color: var(--frame-grey); display: block; margin-bottom: 4px;">PEAK RANGE (MIN - MAX)</label>
+                    <label style="font-size: 0.7rem; color: var(--frame-grey); display: block; margin-bottom: 4px;">PEAK SPECS RANGE (MIN - MAX)</label>
                     <div style="display: flex; gap: 5px;">
                         <input type="number" id="filter-peak-min" placeholder="0" style="width: 50%; background: #000; border: 1px solid #444; color: #fff; padding: 5px; font-family: inherit;">
                         <input type="number" id="filter-peak-max" placeholder="9999" style="width: 50%; background: #000; border: 1px solid #444; color: #fff; padding: 5px; font-family: inherit;">
                     </div>
                 </div>
                 <div>
-                    <label style="font-size: 0.7rem; color: var(--frame-grey); display: block; margin-bottom: 4px;">HASH REQUIREMENT</label>
+                    <label style="font-size: 0.7rem; color: var(--frame-grey); display: block; margin-bottom: 4px;">ORIGIN HASH PREFIX PREFIX</label>
                     <input type="text" id="filter-hash-prefix" placeholder="0x..." style="width: 100%; background: #000; border: 1px solid #444; color: #fff; padding: 5px; box-sizing: border-box; font-family: inherit;">
                 </div>
             </div>
@@ -60,22 +60,43 @@
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
             
             <div id="panel-single-match" onclick="switchMode('single')" style="border: 1px solid var(--accent-green); background: rgba(0,255,0,0.02); padding: 15px; cursor: pointer; transition: all 0.2s ease;">
-                <div class="mode-dependent-content" style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
                     <input type="radio" id="radio-single" name="mode-select" checked style="cursor: pointer;">
-                    <label for="radio-single" class="profile-label" style="margin: 0; color: #fff; cursor: pointer;">SINGLE MATCH</label>
+                    <label for="radio-single" class="profile-label" style="margin: 0; color: #fff; cursor: pointer;">TACTICAL SINGLE COMBAT</label>
+                </div>
+                
+                <div class="mode-dependent-content" style="display: flex; flex-direction: column; gap: 10px;">
+                    <div>
+                        <div style="font-size: 0.7rem; color: var(--frame-grey); margin-bottom: 4px;">CONTESTANT ALPHA</div>
+                        <div style="display: flex; gap: 5px;">
+                            <button onclick="openGlyphPicker(1); event.stopPropagation();" style="flex-grow: 1; background: #111; border: 1px solid #444; color: white; padding: 6px; cursor: pointer; font-family: inherit; font-size: 0.75rem;">
+                                <span id="ui-selected-p1">SELECT GLYPH 01</span>
+                            </button>
+                            <button onclick="assignRandomGlyph(1); event.stopPropagation();" style="background: none; border: 1px solid #444; color: var(--frame-grey); padding: 0 8px; cursor: pointer; font-family: inherit; font-size: 0.7rem;">🎲 RAND</button>
+                        </div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.7rem; color: var(--frame-grey); margin-bottom: 4px;">CONTESTANT BETA</div>
+                        <div style="display: flex; gap: 5px;">
+                            <button onclick="openGlyphPicker(2); event.stopPropagation();" style="flex-grow: 1; background: #111; border: 1px solid #444; color: white; padding: 6px; cursor: pointer; font-family: inherit; font-size: 0.75rem;">
+                                <span id="ui-selected-p2">SELECT GLYPH 02</span>
+                            </button>
+                            <button onclick="assignRandomGlyph(2); event.stopPropagation();" style="background: none; border: 1px solid #444; color: var(--frame-grey); padding: 0 8px; cursor: pointer; font-family: inherit; font-size: 0.7rem;">🎲 RAND</button>
+                        </div>
+                    </div>
                 </div>
             </div>
 
             <div id="panel-tournament" onclick="switchMode('tournament')" style="border: 1px solid #222; background: rgba(0,0,0,0.2); padding: 15px; cursor: pointer; transition: all 0.2s ease;">
                 <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
                     <input type="radio" id="radio-tournament" name="mode-select" style="cursor: pointer;">
-                    <label for="radio-tournament" class="profile-label" style="margin: 0; color: #fff; cursor: pointer;">TOURNAMENT</label>
+                    <label for="radio-tournament" class="profile-label" style="margin: 0; color: #fff; cursor: pointer;">TOURNAMENT BRACKET MATRIX</label>
                 </div>
 
                 <div class="mode-dependent-content" style="display: flex; flex-direction: column; gap: 10px; opacity: 0.4; pointer-events: none;">
                     <div style="display: flex; gap: 10px; align-items: center;">
                         <span style="font-size: 0.75rem; color: var(--frame-grey);">VARIANT:</span>
-                        <select id="tournament-variant-select" style="background: #000; border: 1px solid #444; color: #fff; padding: 4px; font-family: inherit; font-size: 0.75rem; flex-grow: 1;">
+                        <select id="tournament-mode-select" style="background: #000; border: 1px solid #444; color: #fff; padding: 4px; font-family: inherit; font-size: 0.75rem; flex-grow: 1;">
                             <option value="round-robin">ROUND-ROBIN</option>
                             <option value="knock-out">KNOCK-OUT</option>
                         </select>
@@ -89,31 +110,35 @@
                             <button onclick="setTournamentN(32); event.stopPropagation();" class="load-btn n-opt dynamic-n-btn" data-n="32" style="flex: 1; padding: 4px; font-size:0.7rem;">32P</button>
                         </div>
                     </div>
+                    <div style="display: flex; gap: 5px; margin-top: 2px;">
+                        <button onclick="openBulkTournamentPicker(); event.stopPropagation();" style="flex: 1; background: #111; border: 1px solid #444; color: white; padding: 5px; cursor: pointer; font-family: inherit; font-size: 0.7rem;">MANUAL SELECTION</button>
+                        <button onclick="autoFillTournamentGlyphs(); event.stopPropagation();" style="flex: 1; background: none; border: 1px solid #444; color: var(--accent-green); padding: 5px; cursor: pointer; font-family: inherit; font-size: 0.7rem;">🎲 INJECT AUTOMATIC</button>
+                    </div>
                 </div>
             </div>
 
         </div>
 
         <div style="background: rgba(255,255,255,0.02); border: 1px solid #222; padding: 15px; display: flex; flex-direction: column; gap: 12px;">
-            <div class="profile-label" style="color: var(--accent-green);">[ LAYER 03 ] COMPETITION PARAMETERS</div>
+            <div class="profile-label" style="color: var(--accent-green);">[ LAYER 03 ] RUNTIME SIMULATION PARAMETERS</div>
             
             <div style="display: grid; grid-template-columns: 2fr 3fr 2fr; gap: 15px; align-items: flex-end;">
                 <div>
-                    <label style="font-size: 0.7rem; color: var(--frame-grey); display: block; margin-bottom: 4px;">COMPETITION NAME</label>
+                    <label style="font-size: 0.7rem; color: var(--frame-grey); display: block; margin-bottom: 4px;">OPERATION NAME</label>
                     <input type="text" id="matchNameInput" placeholder="ENTER DESIG..." style="width: 100%; background: #000; border: 1px solid #444; color: white; padding: 6px; font-family: inherit; box-sizing: border-box;">
                 </div>
                 <div>
-                    <label style="font-size: 0.7rem; color: var(--frame-grey); display: block; margin-bottom: 4px;">ROUNDS PER MATCH</label>
+                    <label style="font-size: 0.7rem; color: var(--frame-grey); display: block; margin-bottom: 4px;">MATCH ITERATION CYCLES</label>
                     <div style="display: flex; gap: 4px;">
                         <?php foreach ([1, 2, 4, 8, 16, 32, 256] as $r): ?>
                             <button class="load-btn round-opt" onclick="setTotalRounds(<?php echo $r; ?>, this)" style="padding: 6px 0; font-size: 0.7rem; flex: 1;">
-                                <?php echo $r; ?>
+                                <?php echo $r; ?>R
                             </button>
                         <?php endforeach; ?>
                     </div>
                 </div>
                 <div>
-                    <label style="font-size: 0.7rem; color: var(--frame-grey); display: block; margin-bottom: 4px;">SIMULATION SPEED (DELAY)</label>
+                    <label style="font-size: 0.7rem; color: var(--frame-grey); display: block; margin-bottom: 4px;">THROTTLE MATRIX (DELAY)</label>
                     <select id="engine-throttle-select" onchange="frameDelay = parseInt(this.value);" style="width: 100%; background: #000; border: 1px solid #444; color: white; padding: 5px; font-family: inherit; font-size: 0.75rem;">
                         <option value="100">100ms (Slow)</option>
                         <option value="50" selected>50ms (Normal)</option>
@@ -124,8 +149,8 @@
             </div>
         </div>
 
-        <button onclick="closeUnifiedConfig();" class="load-btn" style="width: 100%; padding: 14px; border-color: var(--accent-green); color: var(--accent-green); font-weight: bold; background: rgba(0,255,0,0.02); font-size: 1rem; letter-spacing: 2px;">
-            PROCEED TO COMPETITOR SELECTION
+        <button onclick="executeSystemEngagement()" class="load-btn" style="width: 100%; padding: 14px; border-color: var(--accent-green); color: var(--accent-green); font-weight: bold; background: rgba(0,255,0,0.02); font-size: 1rem; letter-spacing: 2px;">
+            INITIALIZE SIMULATION
         </button>
     </div>
 </div>
@@ -135,9 +160,7 @@
         <h1 id="modal-title" style="font-family: 'Courier New', monospace; color: var(--frame-grey); letter-spacing: 5px;">WHO WILL WIN?</h1>
         <div id="modal-canvas-container">
             </div>
-        <button onclick="closeTourneyConfig();" class="start-btn">ENGAGE</button>
+        <button onclick="closeTourneyConfig();" class="start-btn">CLOSE</button>
     </div>
 </div>
-
-
 
