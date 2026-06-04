@@ -108,7 +108,7 @@ function openTourneyConfig(N, mode, variant){
         let canvas = null;
         let label = null;
 
-        if (variant == 'round-robin'){
+        if ((variant == 'round-robin') || (variant == 'knock-out')){
 
             // 1. Calculate position on the Polygon
             const angle = (i / N) * Math.PI * 2 - (Math.PI / 2);
