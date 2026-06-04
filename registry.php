@@ -130,6 +130,94 @@ $glyphs = $stmt->fetchAll(PDO::FETCH_ASSOC);
             font-size: 0.9em;
             font-weight: 500;
         }
+
+        /* Modal Styling */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(10, 15, 16, 0.85);
+            backdrop-filter: blur(4px);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease;
+        }
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .modal-content {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-gray);
+            border-radius: 4px;
+            width: 90%;
+            max-width: 650px;
+            padding: 20px;
+            position: relative;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.8);
+            transform: translateY(10px);
+            transition: transform 0.2s ease;
+        }
+        .modal-overlay.active .modal-content {
+            transform: translateY(0);
+        }
+        .modal-close {
+            position: absolute;
+            top: 10px; right: 15px;
+            background: none; border: none;
+            color: #8a9698; font-size: 1.8em;
+            cursor: pointer;
+        }
+        .modal-close:hover { color: #fff; }
+        .modal-header {
+            border-bottom: 1px solid var(--border-gray);
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+        }
+        .modal-header h3 { margin: 0 0 4px 0; color: #fff; letter-spacing: 1px; }
+        .modal-body {
+            display: flex;
+            gap: 20px;
+        }
+        .modal-visual-pane {
+            flex: 1;
+            max-width: 200px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: #000;
+            padding: 15px;
+            border: 1px solid #161e20;
+            border-radius: 3px;
+        }
+        #modal-canvas {
+            image-rendering: pixelated;
+            width: 100%;
+        }
+        .modal-stats-pane {
+            flex: 2;
+            font-size: 0.85em;
+        }
+        .stat-group-title {
+            color: var(--accent);
+            font-weight: bold;
+            text-transform: uppercase;
+            font-size: 0.8em;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #333;
+            padding-bottom: 2px;
+        }
+        .modal-stat-line {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+            color: #8a9698;
+        }
+
     </style>
 </head>
 <body>
@@ -170,7 +258,18 @@ $glyphs = $stmt->fetchAll(PDO::FETCH_ASSOC);
         $exploreDate = date("Y-m-d", strtotime($row['EXPLORETIME']));
         $ownerName = !empty($row['OWNER']) ? htmlspecialchars($row['OWNER']) : "ANONYMOUS";
     ?>
-    <div class="glyph-card" style="border-top: 2px solid <?= $color ?>">
+        <div class="glyph-card" 
+            style="border-top: 2px solid <?= $color ?>; cursor: pointer;" 
+            onclick="openModal(this)"
+            data-name="<?= $row['BATTLE_NAME'] ? htmlspecialchars($row['BATTLE_NAME']) : '#'.$row['ATTEMPT'] ?>"
+            data-owner="<?= $ownerName ?>"
+            data-bin="<?= $row['BIN'] ?>"
+            data-color="<?= $color ?>"
+            data-hash="<?= $shortHash ?>"
+            data-iterations="<?= $row['ITERATIONS'] ?>"
+            data-terminal="<?= $row['TERMINAL'] ?>"
+            data-range="<?= $row['MIN'] . ' - ' . $row['MAX'] ?>"
+            data-peak="<?= $row['PEAK'] ?>">
         <div class="visual-box">
             <canvas class="g-canvas" data-bin="<?= $row['BIN'] ?>" data-color="<?= $color ?>"></canvas>
         </div>
@@ -190,7 +289,7 @@ $glyphs = $stmt->fetchAll(PDO::FETCH_ASSOC);
             </div>
 
             <span class="hash-code"><?= $shortHash ?></span>
-            <button class="copy-trigger" onclick="copyBin('<?= $row['BIN'] ?>', this)">Copy BIN</button>
+            <button class="copy-trigger" onclick="event.stopPropagation(); copyBin('<?= $row['BIN'] ?>', this)">Copy BIN</button>
         </div>
     </div>
     <?php endforeach; ?>
@@ -241,6 +340,118 @@ function copyBin(str, btn) {
         setTimeout(() => btn.innerText = oldText, 1000);
     });
 }
+
+function openModal(card) {
+    const data = card.dataset;
+    
+    // 1. Assign Local Text Content Immediately
+    document.getElementById('modal-glyph-name').innerText = data.name;
+    document.getElementById('modal-glyph-owner').innerText = "Owner: " + data.owner;
+    document.getElementById('modal-glyph-hash').innerText = data.hash;
+    document.getElementById('modal-stat-iterations').innerText = data.iterations;
+    document.getElementById('modal-stat-range').innerText = data.range;
+    document.getElementById('modal-stat-peak').innerText = data.peak;
+    
+    // Set up Terminal status color classes dynamically
+    const terminalEl = document.getElementById('modal-stat-terminal');
+    terminalEl.innerText = data.terminal;
+    terminalEl.className = 'terminal-' + data.terminal;
+
+    // 2. Clear old dynamic query text & show a processing state
+    const dynamicContainer = document.getElementById('modal-dynamic-stats');
+    dynamicContainer.innerHTML = `<p style="color:#6a7678; font-style:italic; font-size:0.9em; margin:5px 0;">[ Querying combat archives... ]</p>`;
+
+    // 3. Draw the high-res representation in the modal
+    const canvas = document.getElementById('modal-canvas');
+    const ctx = canvas.getContext('2d');
+    const scale = 12; 
+    canvas.width = 16 * scale; 
+    canvas.height = 16 * scale;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    const radius = 0.45 * scale;
+    for(let i=0; i<256; i++) {
+        if(data.bin[i] === '1') {
+            const x = (i % 16) * scale + (scale / 2);
+            const y = Math.floor(i / 16) * scale + (scale / 2);
+            ctx.beginPath();
+            ctx.arc(x, y, radius, 0, Math.PI * 2);
+            ctx.fillStyle = data.color;
+            ctx.fill();
+        }
+    }
+
+    // 4. Activate Overlay layout
+    document.getElementById('statsModal').classList.add('active');
+
+    // 5. Fire off Deep Asynchronous Query
+    // We pass data.name (which falls back to #ATTEMPT if unnamed)
+    fetch(`php/get_glyph_stats.php?name=${encodeURIComponent(data.name)}`)
+        .then(response => response.json())
+        .then(res => {
+            if (res.success) {
+                let efficiencyColor = '#8a9698'; // Default muted gray
+                if (res.efficiency_index >= 3.0) {
+                    efficiencyColor = '#ff5722'; // Neon Orange/Red for "Elite Threat"
+                } else if (res.efficiency_index >= 1.5) {
+                    efficiencyColor = '#cfd8dc'; // Bright white/silver for "Optimal"
+                }
+                // Construct clean tech-readout style items inside advanced analytics including the new efficiency coefficient
+                dynamicContainer.innerHTML = `
+                    <div class="modal-stat-line"><span>Matches Filed:</span><strong>${res.matches_played}</strong></div>
+                    <div class="modal-stat-line"><span>Rounds Processed:</span><strong>${res.rounds_played}</strong></div>
+                    <div class="modal-stat-line"><span>Cumulative Points:</span><strong>${res.total_score.toLocaleString()}</strong></div>
+                    <div class="modal-stat-line" style="margin-top: 8px; border-top: 1px dashed #3a474a; padding-top: 6px;">
+                        <span title="Points / (Rounds × Generations)">Pts / (Rnd × Gen):</span>
+                        <strong style="color: ${efficiencyColor}; font-family: monospace;">${res.efficiency_index}</strong>
+                    </div>
+                `;
+            } else {
+                dynamicContainer.innerHTML = `<p style="color:#ef5350; font-size:0.9em;">[ Error retrieving advanced metrics ]</p>`;
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            dynamicContainer.innerHTML = `<p style="color:#ef5350; font-size:0.9em;">[ Connection error ]</p>`;
+        });
+}
+
+function closeModal(event) {
+    document.getElementById('statsModal').classList.remove('active');
+}
+
 </script>
+
+<!-- MODAL STRUCTURE FOR INDIVIDUAL GLYPH STATISTICS -->
+<div id="statsModal" class="modal-overlay" onclick="closeModal(event)">
+    <div class="modal-content" onclick="event.stopPropagation()">
+        <button class="modal-close" onclick="closeModal()">×</button>
+        <div class="modal-header">
+            <h3 id="modal-glyph-name">GLYPH STATS</h3>
+            <span id="modal-glyph-owner" class="owner-label"></span>
+        </div>
+        <div class="modal-body">
+            <div class="modal-visual-pane">
+                <canvas id="modal-canvas"></canvas>
+                <span id="modal-glyph-hash" class="hash-code"></span>
+            </div>
+            <div class="modal-stats-pane">
+                <div class="stat-group-title">Core Telemetry</div>
+                <div class="modal-stat-line"><span>Generations:</span><strong id="modal-stat-iterations"></strong></div>
+                <div class="modal-stat-line"><span>Terminal State:</span><strong id="modal-stat-terminal"></strong></div>
+                <div class="modal-stat-line"><span>Min / Max Range:</span><strong id="modal-stat-range"></strong></div>
+                <div class="modal-stat-line"><span>Peak Value:</span><strong id="modal-stat-peak" style="color:#fff;"></strong></div>
+                
+                <div class="stat-group-title" style="margin-top:15px;">Advanced Analytics</div>
+                <div id="modal-dynamic-stats">
+                    <p style="color:#6a7678; font-style:italic; font-size:0.9em; margin:5px 0;">
+                        [ Database hook ready. Future deep queries will populate advanced data vectors here. ]
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 </body>
 </html>
