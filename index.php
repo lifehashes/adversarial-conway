@@ -69,6 +69,7 @@ $glyphs = $stmt->fetchAll();
                     </h3>
                     <div class="stat-line" style="color: var(--accent-green);"><span>SCORE</span> <span id="points1">0</span></div>
                     <div class="stat-line"><span>ITER</span> <span id="iteration1">0</span></div>
+                    <div class="stat-line"><span>OWNER</span> <span id="owner1">-</span></div>
                 </div>
 
                 <div class="glyph-preview-container p1-layout">
@@ -115,6 +116,7 @@ $glyphs = $stmt->fetchAll();
                     </h3>
                     <div class="stat-line" style="color: var(--accent-green);"><span>SCORE</span> <span id="points2">0</span></div>
                     <div class="stat-line"><span>ITER</span> <span id="iteration2">0</span></div>
+                    <div class="stat-line"><span>OWNER</span> <span id="owner2">-</span></div>
                 </div>
 
                 <div class="glyph-preview-container p2-layout">

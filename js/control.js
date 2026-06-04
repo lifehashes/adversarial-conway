@@ -86,6 +86,25 @@ function openTourneyConfig(N, mode, variant){
     const container = document.getElementById('modal-canvas-container');
     container.innerHTML = ''; // Clear previous    
     modal.style.display = 'flex';
+
+    if (variant == 'knock-out'){
+
+        // --- FORCE WIDER LAYOUT HERE ---
+        // Ensure the parent wrapper allows a wide screen format
+        const modalContent = container.parentElement;
+        if (modalContent) {
+            modalContent.style.width = '95%';
+            modalContent.style.maxWidth = '1000px'; // Give it plenty of room to stretch
+        }
+
+        // Ensure the canvas container spans the full width of the modal content wrapper
+        container.style.width = '100%';
+        container.style.position = 'relative'; // Crucial for absolute positioned children
+        container.style.minHeight = '600px';   // Gives vertical breathing room for 16P/32P
+        // -------------------------------
+
+    }
+
     const centerX = container.offsetWidth / 2;
     const centerY = container.offsetHeight / 2;
     const radius = Math.min(centerX, centerY) * 1.2;
@@ -108,7 +127,7 @@ function openTourneyConfig(N, mode, variant){
         let canvas = null;
         let label = null;
 
-        if ((variant == 'round-robin') || (variant == 'knock-out')){
+        if (variant == 'round-robin'){
 
             // 1. Calculate position on the Polygon
             const angle = (i / N) * Math.PI * 2 - (Math.PI / 2);
@@ -148,7 +167,55 @@ function openTourneyConfig(N, mode, variant){
 
         }
 
-        if (variant == 'knock-out'){}
+        if (variant == 'knock-out') {
+            const halfN = N / 2;
+            const isRightSide = i >= halfN;
+            
+            // Determine which column index they are in (0 to halfN - 1)
+            const columnIndex = isRightSide ? i - halfN : i;
+            
+            // Calculate X coordinate (push to far left or far right, leaving padding)
+            const paddingX = 20;       
+            const canvasWidth = 120;      
+            const x = isRightSide ? (container.offsetWidth - paddingX - canvasWidth) : paddingX;
+            
+            // Calculate Y coordinate (evenly spaced vertically)
+            const verticalSpacing = container.offsetHeight / (halfN + 1);
+            const y = verticalSpacing * (columnIndex + 1);
+
+            // 2. Create Canvas Element
+            canvasId = `modal-canvas-${i}`;
+            canvas = document.createElement('canvas');
+            canvas.id = canvasId;
+            canvas.className = 'modal-glyph-canvas';
+            canvas.height = 120;
+            canvas.width = canvasWidth;
+            canvas.style.left = `${x}px`;
+            canvas.style.top = `${y}px`;        
+            container.appendChild(canvas);
+
+            // 3. Append labels
+            label = document.createElement('div');
+            label.className = 'modal-glyph-label';    
+            label.style.left = `${x}px`;
+            label.style.top = `${y}px`;
+
+            if (!isRightSide) {
+                // Left side layout (Labels project outwards/inwards correctly)
+                label.style.transform = 'translate(80px, -50%)';
+                label.style.alignItems = 'flex-start';
+                label.style.borderLeft = `3px solid ${glyph.intrinsicColor || "#42f485"}`;
+                label.style.borderRight = 'none';
+            } else {
+                // Right side layout
+                label.style.transform = 'translate(-135%, -50%)';
+                label.style.left = `${x - 15}px`; 
+                label.style.alignItems = 'flex-end';
+                label.style.textAlign = 'right';
+                label.style.borderRight = `3px solid ${glyph.intrinsicColor || "#42f485"}`;
+                label.style.borderLeft = 'none';
+            }
+        }
 
         // 4. Inject the Data
         label.innerHTML = `

@@ -146,6 +146,7 @@ class Match{
         document.getElementById("algo-mode").innerText = this.mode;
 
         document.getElementById("name1").innerText = this.glyphA.name;
+        document.getElementById("owner1").innerText = this.glyphA.owner;
         document.getElementById("spec-gen1").innerText = this.glyphA.gen;
         document.getElementById("spec-peak1").innerText = this.glyphA.peak;
         document.getElementById("spec-max1").innerText = this.glyphA.max;
@@ -153,6 +154,7 @@ class Match{
         document.getElementById("originHash1").innerText = "0x" + this.glyphA.originHash.substring(0, 16) + "...";
 
         document.getElementById("name2").innerText = this.glyphB.name;
+        document.getElementById("owner2").innerText = this.glyphB.owner;
         document.getElementById("spec-gen2").innerText = this.glyphB.gen;
         document.getElementById("spec-peak2").innerText = this.glyphB.peak;
         document.getElementById("spec-max2").innerText = this.glyphB.max;
