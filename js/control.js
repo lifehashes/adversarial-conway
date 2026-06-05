@@ -1,5 +1,60 @@
 /* MODAL CONTROL */
 
+function openSelectionModal(n) {
+    const modal = document.getElementById('selectionModal');
+    modal.style.display = 'flex';
+    modal.dataset.index = n;
+}
+
+function selectGlyph(rowElement){
+    
+    const idx = document.getElementById('selectionModal').dataset.index;
+    if ((idx === undefined) || (idx === null)){ console.error("[control.js] selectGlyph(): No active index found on selectionModal."); }
+
+    const modal = document.getElementById(`modal-canvas-${idx}`);
+    const label = document.getElementById(`modal-glyph-label-${idx}`);
+    
+    const oldGlyph = label.querySelector('h3').textContent;
+    let idxTemp = activeTournamentPool.findIndex(glyph => glyph.name === oldGlyph);
+    const oldBin = activeTournamentPool[idxTemp].bin;
+
+    // update labels
+    label.innerHTML = `
+        <h3>${rowElement.dataset.name}</h3>
+        <div class="modal-glyph-stats">
+            <span>G:<span class="stat-val">${rowElement.dataset.gen}</span></span>
+            <span>P:<span class="stat-val">${rowElement.dataset.peak}</span></span>
+            <span>MN:<span class="stat-val">${rowElement.dataset.min}</span></span>
+            <span>MX:<span class="stat-val">${rowElement.dataset.max}</span></span>
+        </div>
+    `;
+
+    const idxNew = GlyphRegistry.findIndex(glyph => glyph.name === rowElement.dataset.name);
+    label.style.borderLeftColor = GlyphRegistry[idxNew].intrinsicColor || "#42f485";
+    label.style.borderRightColor = GlyphRegistry[idxNew].intrinsicColor || "#42f485";
+
+    // swap out Glyph from active pool
+    const idxPool = activeTournamentPool.findIndex(glyph => glyph.name === oldGlyph);
+    activeTournamentPool[idxPool] = GlyphRegistry[idxNew];
+
+    // swap out Glyph from the modal engine
+    const idxEngine = modalEngines.findIndex(engine => engine.originBinary === oldBin);
+    // modalEngines[idxEngine] = new LifeEngine(modal, 16);
+    modalEngines[idxEngine].intrinsicColor = activeTournamentPool[idxPool].intrinsicColor || "#42f485";
+    modalEngines[idxEngine].loadFromBinary(activeTournamentPool[idxPool].bin);
+
+    console.log("[control.js] selectGlyph(): You selected " + rowElement.dataset.name + " to swap out " + oldGlyph + " at index " + idx);
+    // console.log(oldGlyph + " is found in the active pool at index " + idxPool);
+    // console.log(oldGlyph + " is found in the modal engine array at index " + idxEngine);
+
+    closeSelectionModal();
+    
+}
+
+function closeSelectionModal() {
+    document.getElementById('selectionModal').style.display = 'none';
+}
+
 function openUnifiedConfig() {
     resetUI(0);
     document.getElementById('unifiedConfigModal').style.display = 'flex';
@@ -63,6 +118,13 @@ function closeUnifiedConfig() {
     openTourneyConfig(selectedTournamentN, currentActiveMode, selectedTourneyVariant);
 }
 
+function goBackToSetup(){
+
+    document.getElementById('tournament-modal').style.display = 'none';
+    openUnifiedConfig();
+
+}
+
 function getFilteredPool() {
     const minGen = parseInt(document.getElementById('filter-gen-min').value) || 0;
     const maxGen = parseInt(document.getElementById('filter-gen-max').value) || Infinity;
@@ -84,24 +146,33 @@ function openTourneyConfig(N, mode, variant){
     // 0. Set up the selection screen
     const modal = document.getElementById('tournament-modal');
     const container = document.getElementById('modal-canvas-container');
+    const modalContent = container.parentElement;
     container.innerHTML = ''; // Clear previous    
     modal.style.display = 'flex';
+       
+    if (variant == 'round-robin') {
+
+        if (modalContent) {
+            modalContent.style.width = '';
+            modalContent.style.maxWidth = '';
+        }
+
+        container.style.width = '';
+        container.style.position = '';
+        container.style.minHeight = '';
+
+    }
 
     if (variant == 'knock-out'){
 
-        // --- FORCE WIDER LAYOUT HERE ---
-        // Ensure the parent wrapper allows a wide screen format
-        const modalContent = container.parentElement;
         if (modalContent) {
             modalContent.style.width = '95%';
-            modalContent.style.maxWidth = '1000px'; // Give it plenty of room to stretch
+            modalContent.style.maxWidth = '1000px';
         }
 
-        // Ensure the canvas container spans the full width of the modal content wrapper
         container.style.width = '100%';
-        container.style.position = 'relative'; // Crucial for absolute positioned children
-        container.style.minHeight = '600px';   // Gives vertical breathing room for 16P/32P
-        // -------------------------------
+        container.style.position = 'relative';
+        container.style.minHeight = '600px';
 
     }
 
@@ -142,11 +213,17 @@ function openTourneyConfig(N, mode, variant){
             canvas.width = 120; // Size of the mini-display
             canvas.height = 120;
             canvas.style.left = `${x}px`;
-            canvas.style.top = `${y}px`;        
+            canvas.style.top = `${y}px`;  
+            canvas.style.cursor = 'pointer';
+            canvas.onclick = function() {
+                openSelectionModal(i);
+            };      
             container.appendChild(canvas);
 
             // 3. Append labels
             label = document.createElement('div');
+            labelId = `modal-glyph-label-${i}`;
+            label.id = labelId;
             label.className = 'modal-glyph-label';    
             label.style.left = `${x}px`; // Offset the label based on the same X, Y as the canvas
             label.style.top = `${y}px`;
@@ -167,7 +244,7 @@ function openTourneyConfig(N, mode, variant){
 
         }
 
-        if (variant == 'knock-out') {
+        if (variant == 'knock-out')  {
             const halfN = N / 2;
             const isRightSide = i >= halfN;
             
@@ -191,11 +268,17 @@ function openTourneyConfig(N, mode, variant){
             canvas.height = 120;
             canvas.width = canvasWidth;
             canvas.style.left = `${x}px`;
-            canvas.style.top = `${y}px`;        
+            canvas.style.top = `${y}px`;
+            canvas.style.cursor = 'pointer';
+            canvas.onclick = function() {
+                openSelectionModal(i);
+            };        
             container.appendChild(canvas);
 
             // 3. Append labels
             label = document.createElement('div');
+            labelId = `modal-glyph-label-${i}`;
+            label.id = labelId;
             label.className = 'modal-glyph-label';    
             label.style.left = `${x}px`;
             label.style.top = `${y}px`;
@@ -240,7 +323,7 @@ function openTourneyConfig(N, mode, variant){
         modalEngines.push(engine);
 
         let lastTime = 0;
-        const throttleSpeed = 50; // The delay in milliseconds. Higher = Slower.
+        const throttleSpeed = 100; // The delay in milliseconds. Higher = Slower.
         animateModalPreview();
 
         function animateModalPreview(timestamp) {

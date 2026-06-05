@@ -183,6 +183,8 @@ $glyphs = $stmt->fetchAll();
         let roundGraph1, roundGraph2;
         let chargeHist1, chargeHist2;
         let unifiedGraph;
+
+        let modalEngines;
         
         const GlyphRegistry = [
             <?php foreach ($glyphs as $glyph): ?>

@@ -1,7 +1,7 @@
 <div id="selectionModal" class="modal-overlay" style="z-index: 10000; display:none;" onclick="if(event.target == this) closeSelectionModal()">
     <div class="modal-window" style="max-width: 500px;">
         <div style="display:flex; justify-content:space-between; margin-bottom:20px;">
-            <h3 style="color:var(--accent-green); margin:0; font-family:'Courier New';">LOAD CELL CONFIGURATION</h3>
+            <h3 style="color:var(--accent-green); margin:0; font-family:'Courier New';">GLYPH SELECTION</h3>
             <button onclick="closeSelectionModal()" style="background:none; border:1px solid var(--frame-grey); color:white; cursor:pointer;">X</button>
         </div>
         <div class="glyph-list" style="max-height: 400px; overflow-y: auto;">
@@ -14,7 +14,7 @@
                         data-max="<?php echo htmlspecialchars($glyph['MAX']); ?>"
                         data-min="<?php echo htmlspecialchars($glyph['MIN']); ?>"
                         data-originHash="<?php echo htmlspecialchars($glyph['HASH']); ?>"
-                        onclick="selectGlyphFromBroker(this)">
+                        onclick="selectGlyph(this)">
                     <span class="glyph-name"><?php echo htmlspecialchars($glyph['BATTLE_NAME']); ?></span>
                     <span class="glyph-peak" style="opacity:0.5; font-size:0.7rem;">
                         G: <?php echo $glyph['GENERATIONS']; ?> | P: <?php echo $glyph['PEAK']; ?>
@@ -131,10 +131,11 @@
 </div>
 
 <div id="tournament-modal" class="modal-overlay" style="display:none;">
-    <div class="modal-content">
+    <div class="modal-content" id="tourney-modal-wrapper">
         <h1 id="modal-title" style="font-family: 'Courier New', monospace; color: var(--frame-grey); letter-spacing: 5px;">WHO WILL WIN?</h1>
         <div id="modal-canvas-container">
         </div>
+        <button onclick="goBackToSetup();" class="load-btn">BACK TO SETUP</button>
         <button onclick="closeTourneyConfig();" class="start-btn">ENGAGE</button>
     </div>
 </div>
