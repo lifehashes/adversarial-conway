@@ -359,6 +359,103 @@ function closeTourneyConfig(){
     executeSystemEngagement();
 }
 
+function showMatchSummaryModal(matchInstance) {
+    // 1. Set the Title/Designation
+    document.getElementById('summary-designation').innerText = matchInstance.designation.toUpperCase() + " SUMMARY";
+    
+    // 2. Set Contestant Details and Total Rounds Won
+    const p1NameEl = document.getElementById('summary-p1-name');
+    const p2NameEl = document.getElementById('summary-p2-name');
+
+    p1NameEl.innerText = matchInstance.glyphA.name;
+    document.getElementById('summary-p1-rounds').innerText = matchInstance.roundsWonByGlyph.p1;
+    
+    p2NameEl.innerText = matchInstance.glyphB.name;
+    document.getElementById('summary-p2-rounds').innerText = matchInstance.roundsWonByGlyph.p2;
+
+    // Reset animations and shadows from any previous matches
+    p1NameEl.classList.remove('winner-pulse-glow');
+    p2NameEl.classList.remove('winner-pulse-glow');
+    p1NameEl.style.textShadow = 'none';
+    p2NameEl.style.textShadow = 'none';
+
+    // Apply basic layout colors and text-shadow fallback definitions
+    p1NameEl.style.color = matchInstance.glyphA.intrinsicColor || "#fff";
+    p1NameEl.style.textShadow = "1px 1px 0 #aaa, -1px -1px 0 #aaa, 1px -1px 0 #aaa, -1px 1px 0 #aaa";
+    
+    p2NameEl.style.color = matchInstance.glyphB.intrinsicColor || "#fff";
+    p2NameEl.style.textShadow = "1px 1px 0 #aaa, -1px -1px 0 #aaa, 1px -1px 0 #aaa, -1px 1px 0 #aaa";
+
+    // Compare final round statistics to find the match winner
+    const p1Rounds = matchInstance.roundsWonByGlyph.p1;
+    const p2Rounds = matchInstance.roundsWonByGlyph.p2;
+
+    if (p1Rounds > p2Rounds) {
+        p1NameEl.classList.add('winner-pulse-glow');
+        //p1NameEl.style.color = "#ffffff"; 
+        p1NameEl.style.textShadow = "none";
+    } else if (p2Rounds > p1Rounds) {
+        p2NameEl.classList.add('winner-pulse-glow');
+        //p2NameEl.style.color = "#ffffff";
+        p2NameEl.style.textShadow = "none";
+    }
+
+    // 3. Populate the Round Breakdown Matrix
+    const container = document.getElementById('summary-rounds-container');
+    container.innerHTML = ''; // Clear previous contents
+
+    matchInstance.matchRoundData.forEach(round => {
+        const row = document.createElement('div');
+        row.style.display = 'flex';
+        row.style.justifyContent = 'space-between';
+        row.style.fontSize = '0.8rem';
+        row.style.padding = '6px 0';
+        row.style.borderBottom = '1px solid #111';
+
+        // Initialize display strings with default values
+        let p1Display = round.p1_final_score;
+        let p2Display = round.p2_final_score;
+
+        // Default style weights
+        let p1Style = 'color: #aaa;';
+        let p2Style = 'color: #aaa;';
+
+        // Calculate percentage advantages
+        if (round.p1_final_score > round.p2_final_score) {
+            p1Style = 'font-weight: bold; color: var(--accent-green);';
+            
+            // Avoid division by zero if P2 scored 0
+            const diff = round.p1_final_score - round.p2_final_score;
+            const pct = round.p2_final_score > 0 ? (diff / round.p2_final_score) * 100 : 100.0;
+            
+            p1Display = `${round.p1_final_score} <span style="font-size: 0.7rem; color: #42f485; font-weight: normal; margin-left: 4px;">(+${pct.toFixed(1)}%)</span>`;
+        } 
+        else if (round.p2_final_score > round.p1_final_score) {
+            p2Style = 'font-weight: bold; color: var(--accent-green);';
+            
+            // Avoid division by zero if P1 scored 0
+            const diff = round.p2_final_score - round.p1_final_score;
+            const pct = round.p1_final_score > 0 ? (diff / round.p1_final_score) * 100 : 100.0;
+            
+            p2Display = `<span style="font-size: 0.7rem; color: #42f485; font-weight: normal; margin-right: 4px;">(+${pct.toFixed(1)}%)</span> ${round.p2_final_score}`;
+        }
+
+        row.innerHTML = `
+            <span style="width: 20%; color: var(--frame-grey);">#${round.round_number}</span>
+            <span style="width: 40%; text-align: left; ${p1Style}">${p1Display}</span>
+            <span style="width: 40%; text-align: right; ${p2Style}">${p2Display}</span>
+        `;
+        container.appendChild(row);
+    });
+
+    // 4. Reveal Modal
+    document.getElementById('matchSummaryModal').style.display = 'flex';
+}
+
+function closeMatchSummaryModal() {
+    document.getElementById('matchSummaryModal').style.display = 'none';
+}
+
 /* U.I. CONTROL */
 
 function resetUI(){

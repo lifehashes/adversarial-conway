@@ -100,8 +100,17 @@ class Match{
                         } else {
                             document.getElementById('gamestatus').innerText = "MATCH COMPLETE";                    
                             this.saveMatchToDatabase();
-                            this.matchRoundData = [];
-                            resolve();
+
+                            const matchInstance = this;
+                            setTimeout(() => {
+
+                                showMatchSummaryModal(matchInstance);
+
+                                matchInstance.matchRoundData = [];
+                                resolve();
+
+                            }, 2400);
+
                         }
 
                         renderAnalytics();
