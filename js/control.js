@@ -1,3 +1,6 @@
+let matchSummaryTimer = null;
+let currentSummaryCallback = null;
+
 /* MODAL CONTROL */
 
 function openSelectionModal(n) {
@@ -359,7 +362,11 @@ function closeTourneyConfig(){
     executeSystemEngagement();
 }
 
-function showMatchSummaryModal(matchInstance) {
+function showMatchSummaryModal(matchInstance, onCompleteCallback) {
+   
+    currentSummaryCallback = onCompleteCallback;
+    if (matchSummaryTimer) clearTimeout(matchSummaryTimer); // Clear any leftover timers just in case
+    
     // 1. Set the Title/Designation
     document.getElementById('summary-designation').innerText = matchInstance.designation.toUpperCase() + " SUMMARY";
     
@@ -450,10 +457,35 @@ function showMatchSummaryModal(matchInstance) {
 
     // 4. Reveal Modal
     document.getElementById('matchSummaryModal').style.display = 'flex';
+
+    // 5. Automatic Countdown Control (if tournamentId is present, we know it's a tournament match, harr harr!)
+    if (matchInstance.tournamentId !== null) {
+        matchSummaryTimer = setTimeout(() => {
+            closeMatchSummaryModal();
+        }, 5000);
+    }
+
 }
 
 function closeMatchSummaryModal() {
+
+    resetUI();
+
+    // Stop the automatic background timer if the user clicked "Close" manually
+    if (matchSummaryTimer) {
+        clearTimeout(matchSummaryTimer);
+        matchSummaryTimer = null;
+    }
+
+    // Hide the UI element
     document.getElementById('matchSummaryModal').style.display = 'none';
+
+    // If there is an engine callback waiting on this closure, execute it now
+    if (typeof currentSummaryCallback === 'function') {
+        const callback = currentSummaryCallback;
+        currentSummaryCallback = null; // Prevent double execution
+        callback();
+    }
 }
 
 /* U.I. CONTROL */

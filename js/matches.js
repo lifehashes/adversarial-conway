@@ -98,16 +98,19 @@ class Match{
                             let waitBetweenRounds = 3000;
                             setTimeout(() => { executeRound(); }, waitBetweenRounds);
                         } else {
+
                             document.getElementById('gamestatus').innerText = "MATCH COMPLETE";                    
                             this.saveMatchToDatabase();
 
                             const matchInstance = this;
                             setTimeout(() => {
 
-                                showMatchSummaryModal(matchInstance);
+                                showMatchSummaryModal(matchInstance, () => {
 
-                                matchInstance.matchRoundData = [];
-                                resolve();
+                                    matchInstance.matchRoundData = [];
+                                    resolve();
+
+                                });
 
                             }, 2400);
 
