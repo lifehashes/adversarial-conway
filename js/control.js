@@ -359,7 +359,7 @@ function populateTourneyConfig(){
 
 function closeTourneyConfig(){
     document.getElementById('tournament-modal').style.display = 'none';
-    executeSystemEngagement();
+    executeSystemEngagement(null);
 }
 
 function showMatchSummaryModal(matchInstance, onCompleteCallback) {

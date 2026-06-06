@@ -1,11 +1,12 @@
 class Match{
 
-    constructor(glyphA, glyphB, designation, rounds, frameDelay, tournamentId = null){
+    constructor(glyphA, glyphB, designation, rounds, frameDelay, tournamentId = null, seed = null){
 
         this.designation = designation;
         this.currentRound = 1;
         this.totalRounds = rounds;
         this.repeatValue = null;
+        this.externalSeed = seed;
 
         this.frameDelay = frameDelay;
 
@@ -43,7 +44,13 @@ class Match{
                 const arenaGridSize = 96; 
                 arena = new ArenaEngine("canvasA", 600, 300, arenaGridSize); 
 
-                this.repeatValue = Math.floor(Math.random() * 1000000);
+                this.repeatValue = Math.floor(Math.random() * 1000000); 
+                if (this.externalSeed != null){ 
+                    this.repeatValue = this.externalSeed; // if an external seed (e.g. from NIST) is provided, overwrite the local seed
+                    console.log("[matches.js] Match{}.run(): No external seed provided, using local RNG " + this.repeatValue); 
+                }
+                
+                
                 arena.setSeed(this.repeatValue);
                 document.getElementById("round-seed").innerText = this.repeatValue;
 

@@ -276,11 +276,12 @@ $glyphs = $stmt->fetchAll();
             }
         }
 
-        function executeSystemEngagement() {
+        function executeSystemEngagement(seed = null) {
 
             let myGlyphSelection = "";
             activeTournamentPool.forEach((glyph) => { myGlyphSelection = myGlyphSelection + glyph.name + " " });
-            console.log("[index.php] executeSystemEngagement(): activeTournamentPool = " + myGlyphSelection);
+            // console.log("[index.php] executeSystemEngagement(): activeTournamentPool = " + myGlyphSelection);
+            // console.log("[index.php] executeSystemEngagement(): seed value = " + seed);
          
             const frameDelay = document.getElementById("engine-throttle-select").value;
             const selectedTourneyVariant = document.getElementById("tournament-variant-select").value;
@@ -292,7 +293,7 @@ $glyphs = $stmt->fetchAll();
 
                 document.getElementById('unifiedConfigModal').style.display = 'none';
                 const executionName = document.getElementById("matchNameInput").value.trim() || "UNNAMED_ENGAGEMENT";
-                let myMatch = new Match(glyphA, glyphB, executionName, totalRounds, frameDelay);
+                let myMatch = new Match(glyphA, glyphB, executionName, totalRounds, frameDelay, null, seed);
                 myMatch.run();
 
             } else {
