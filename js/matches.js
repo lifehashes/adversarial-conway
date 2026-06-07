@@ -1,12 +1,13 @@
 class Match{
 
-    constructor(glyphA, glyphB, designation, rounds, frameDelay, tournamentId = null, seed = null){
+    constructor(glyphA, glyphB, designation, rounds, frameDelay, tournamentId = null, seed = null, ranked = null){
 
         this.designation = designation;
         this.currentRound = 1;
         this.totalRounds = rounds;
         this.repeatValue = null;
         this.externalSeed = seed;
+        this.is_ranked = ranked;
 
         this.frameDelay = frameDelay;
 
@@ -241,7 +242,8 @@ class Match{
             total_rounds_configured: this.totalRounds,
             p1_rounds_won: this.roundsWonByGlyph.p1,
             p2_rounds_won: this.roundsWonByGlyph.p2,
-            rounds: this.matchRoundData
+            rounds: this.matchRoundData,
+            is_ranked: this.isRanked ? 1 : 0
         };
 
         console.log("[DATABASE API] Dispatched payload packet:", payload);
@@ -270,7 +272,7 @@ class Match{
 }
 
 class Tournament {
-    constructor(contestants, mode = 'round-robin') {
+    constructor(contestants, mode = 'round-robin', ranked = null) {
         this.contestants = contestants; 
         this.mode = mode;
         this.matchQueue = [];
@@ -279,6 +281,7 @@ class Tournament {
         this.standings = {};
         this.dbTourneyId = null;
         this.survivors = [...contestants]; // this tracks the remaining contestants for the knock-out variant
+        this.is_ranked = ranked;
 
         this.init();
     }
@@ -452,7 +455,7 @@ class Tournament {
             const response = await fetch('php/save_tournament.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name: tournamentName, mode: this.mode })
+                body: JSON.stringify({ name: tournamentName, mode: this.mode, is_ranked: this.is_ranked ? 1 : 0 })
             });
 
             const result = await response.json();

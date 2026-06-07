@@ -26,8 +26,8 @@ try {
     $stmt = $pdo->prepare("INSERT INTO matches (
         tournament_id, match_designation, p1_glyph_name, p2_glyph_name, 
         grid_size, arena_width, arena_height, game_mode, 
-        total_rounds_configured, p1_rounds_won, p2_rounds_won
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        total_rounds_configured, p1_rounds_won, p2_rounds_won, is_ranked
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
 
     $stmt->execute([
         $tournament_id,
@@ -40,7 +40,8 @@ try {
         $data['game_mode'] ?? 'combative',
         $data['total_rounds_configured'] ?? 1,
         $data['p1_rounds_won'] ?? 0,
-        $data['p2_rounds_won'] ?? 0
+        $data['p2_rounds_won'] ?? 0,
+        $data['is_ranked'] ?? 0
     ]);
 
     $match_id = $pdo->lastInsertId();
