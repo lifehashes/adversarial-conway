@@ -10,7 +10,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 $data = json_decode(file_get_contents('php://input'), true);
 
 try {
-    $stmt = $pdo->prepare("INSERT INTO tournaments (name, mode) VALUES (?, ?, ?)");
+    $stmt = $pdo->prepare("INSERT INTO tournaments (name, mode, is_ranked) VALUES (?, ?, ?)");
     $stmt->execute([
         $data['name'] ?? 'Automated Round Robin',
         $data['mode'] ?? 'round-robin',

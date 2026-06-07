@@ -488,7 +488,7 @@ class Tournament {
             const glyphA = this.getNextMatch().p1.name;
             const glyphB = this.getNextMatch().p2.name;
             let executionName = document.getElementById("matchNameInput").value.trim() || "UNNAMED_ENGAGEMENT";
-            executionName = executionName + ", Match " + mI + "/" + tL;
+            executionName = executionName + ", Match " + parseInt(mI + 1) + "/" + tL;
 
             tourneyVisualizer.render(glyphA, glyphB);
             tourneyLeaderboard.render(this.standings);
@@ -513,7 +513,6 @@ class Tournament {
                 
                 tourneyVisualizer.advanceRoundTier();     
                 
-                // CRITICAL FIX: Reset the index back to 0 for the upcoming round's queue!
                 this.currentMatchIndex = 0; 
                             
                 this.generateKnockOut(); 
