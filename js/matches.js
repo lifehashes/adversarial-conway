@@ -485,7 +485,7 @@ class Tournament {
             const glyphA = this.getNextMatch().p1.name;
             const glyphB = this.getNextMatch().p2.name;
             let executionName = document.getElementById("matchNameInput").value.trim() || "UNNAMED_ENGAGEMENT";
-            executionName = executionName + "_M_" + mI;
+            executionName = executionName + ", Match " + mI + "/" + tL;
 
             tourneyVisualizer.render(glyphA, glyphB);
             tourneyLeaderboard.render(this.standings);
