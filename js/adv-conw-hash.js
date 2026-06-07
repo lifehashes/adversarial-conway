@@ -20,6 +20,7 @@ class LifeEngine {
         this.isActive = true;
 
         this.originBinary = null;
+        this.containment = true;
 
     }
 
@@ -61,7 +62,10 @@ class LifeEngine {
 
         for (let y = 0; y < this.n; y++) {
             for (let x = 0; x < this.n; x++) {
-                const neighbors = this.countNeighbors(x, y);
+
+                let neighbors = null;
+                if (this.containment == true){ neighbors = this.countNeighbors(x, y); } else { neighbors = this.countNeighborsUncontained(x, y); }
+
                 const currentState = this.grid[y][x];
 
                 if (currentState === 1 && (neighbors === 2 || neighbors === 3)) {
@@ -103,6 +107,24 @@ class LifeEngine {
                 const nx = (x + j + this.n) % this.n;
                 const ny = (y + i + this.n) % this.n;
                 count += this.grid[ny][nx];
+            }
+        }
+        return count;
+    }
+
+    countNeighborsUncontained(x, y) {
+        let count = 0;
+        for (let i = -1; i <= 1; i++) {
+            for (let j = -1; j <= 1; j++) {
+                if (i === 0 && j === 0) continue;
+                
+                const nx = x + j;
+                const ny = y + i;
+                
+                // Fixed Box Border Logic: Check if neighbor coordinate is inside the grid
+                if (nx >= 0 && nx < this.n && ny >= 0 && ny < this.n) {
+                    count += this.grid[ny][nx];
+                }
             }
         }
         return count;
