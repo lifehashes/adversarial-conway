@@ -70,9 +70,12 @@ class Match{
 
                 duelInterval = setInterval(() => {
 
-                    // 1. Evolve the Glyph
+                    // 1a. Evolve the Glyph
                     const p1Active = unit1.computeNextGeneration();
                     const p2Active = unit2.computeNextGeneration();
+
+                    // 1b. Random Events & Special Attacks
+                    this.randomEvents();
 
                     this.updateUI();
 
@@ -158,6 +161,33 @@ class Match{
 
     }
 
+    randomEvents(){
+
+        const rndInt = () => Math.floor(Math.random() * 1000);
+        let roll = rndInt();
+        // console.log(`[matches.js] Match{}.randomEvents(): roll = ${roll}`);
+
+        if (roll >= 997){
+
+            const targetUnit = Math.random() < 0.5 ? unit1 : unit2;
+            targetUnit.containment = false;
+
+            let targetCanvas = null;
+            if (targetUnit == unit1){ targetCanvas = "canvas1"; } else { targetCanvas = "canvas2"; }
+                    
+            const canvasElement = document.getElementById(targetCanvas);            
+            if (canvasElement) {
+                canvasElement.classList.toggle('failure', !targetUnit.containment); // If containment is false, 'failure' class is added. If true, it's removed.
+            }
+
+            let targetGlyph = null;
+            if (targetUnit == unit1){ targetGlyph = this.glyphA; } else { targetGlyph = this.glyphB; }
+            console.log(`[matches.js] Match{}.randomEvents(): Containment failure triggered for ${targetGlyph.name}.`);            
+
+        }
+
+    }
+
     initUI(){
 
         document.getElementById("matchID").innerText = this.designation;
@@ -184,6 +214,13 @@ class Match{
     }
 
     updateUI(){
+
+        // If containment is false, 'failure' class is added. If true, it's removed.
+        document.getElementById('canvas1').classList.toggle('failure', !unit1.containment); 
+        document.getElementById('canvas2').classList.toggle('failure', !unit2.containment);
+        document.getElementById('log1').innerText = unit1.containment ? "" : "!!CONT.FAIL!!";
+        document.getElementById('log2').innerText = unit2.containment ? "" : "!!CONT.FAIL!!";
+
 
         document.getElementById('iteration1').innerText = unit1.iteration;
         document.getElementById('currentHash1').innerText = "0x" + unit1.currentHash.substring(0, 16) + "...";

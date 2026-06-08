@@ -73,6 +73,22 @@ body {
     flex-shrink: 0;          /* Prevents squishing */
 }
 
+.glyph-canvas.failure {
+    animation: blink-red 0.5s infinite;
+}
+
+@keyframes blink-red {
+    0%, 100% {
+        border-color: var(--frame-grey);
+        box-shadow: 3px 3px 10px rgba(0,0,0,0.5);
+    }
+    50% {
+        border-color: #ff3333;
+        /* Optional: Makes the shadow glow red too for a stronger alert effect */
+        box-shadow: 0 0 15px rgba(255, 51, 51, 0.8); 
+    }
+}
+
 .glyph-stats {
     display: flex;
     flex-direction: column;

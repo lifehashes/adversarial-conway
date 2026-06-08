@@ -173,6 +173,7 @@ class LifeEngine {
         this.history.clear();
         this.isActive = true;
         this.loadFromBinary(this.originBinary);
+        this.containment = true;
     }
 
 }
