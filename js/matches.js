@@ -167,7 +167,7 @@ class Match{
         let roll = rndInt();
         // console.log(`[matches.js] Match{}.randomEvents(): roll = ${roll}`);
 
-        if (roll >= 997){
+        if (roll >= 1000){
 
             const targetUnit = Math.random() < 0.5 ? unit1 : unit2;
             targetUnit.containment = false;
@@ -320,10 +320,10 @@ class Tournament {
         this.survivors = [...contestants]; // this tracks the remaining contestants for the knock-out variant
         this.is_ranked = ranked;
 
-        this.init();
+        // this.init();
     }
 
-    init() {
+    async init() {
         if (this.mode === 'round-robin') {
             this.generateRoundRobin();
         } 
@@ -334,6 +334,29 @@ class Tournament {
         this.contestants.forEach(c => {
             this.standings[c.name] = { wins: 0, losses: 0, points: 0, played: 0 };
         });
+
+        const tournamentName = document.getElementById("matchNameInput").value.trim() || "Automated Round Robin";
+
+        try {
+            const response = await fetch('php/save_tournament.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: tournamentName, mode: this.mode, is_ranked: this.is_ranked ? 1 : 0 })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                this.dbTourneyId = result.tournament_id;
+                // console.log("[tournament.js] Database tournament registered successfully. ID: " + this.dbTourneyId);
+                console.log(`%cTournament{}.startTournament() -> [DATABASE API] SUCCESS: Saved tourney safely under ID ${this.dbTourneyId || 'N/A'}`, 'color: #00aa00;');
+            } else {
+                // console.error("[tournament.js] Database rejected tournament creation: ", result.error);
+            }
+        } catch (error) {
+            console.error("[tournament.js] Network failure initializing tournament: ", error);
+        }
+
     }
 
     generateRoundRobin() {
@@ -486,32 +509,9 @@ class Tournament {
 
     async startTournament(){
         // console.log("[tournament.js] Initializing master tournament entry...");
-        const tournamentName = document.getElementById("matchNameInput").value.trim() || "Automated Round Robin";
-        
-        try {
-            const response = await fetch('php/save_tournament.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name: tournamentName, mode: this.mode, is_ranked: this.is_ranked ? 1 : 0 })
-            });
-
-            const result = await response.json();
-
-            if (result.success) {
-                this.dbTourneyId = result.tournament_id;
-                // console.log("[tournament.js] Database tournament registered successfully. ID: " + this.dbTourneyId);
-                
-                // Visualizers initialization
-                tourneyVisualizer = new TournamentVisualizer("tournamentPolygon", this.contestants, this.mode);
-                tourneyLeaderboard = new TournamentLeaderboard("tournamentLeaderboard", this.contestants, this.mode);
-
-                this.runTournament();
-            } else {
-                // console.error("[tournament.js] Database rejected tournament creation: ", result.error);
-            }
-        } catch (error) {
-            console.error("[tournament.js] Network failure initializing tournament: ", error);
-        }
+        tourneyVisualizer = new TournamentVisualizer("tournamentPolygon", this.contestants, this.mode);
+        tourneyLeaderboard = new TournamentLeaderboard("tournamentLeaderboard", this.contestants, this.mode);
+        this.runTournament();
     }
 
     async runTournament(){

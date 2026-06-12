@@ -187,6 +187,9 @@ $glyphs = $stmt->fetchAll();
         let unifiedGraph;
 
         let modalEngines;
+
+        let currentSeriesId = null;
+        let currentGroup = null;
         
         const GlyphRegistry = [
             <?php foreach ($glyphs as $glyph): ?>
@@ -278,7 +281,7 @@ $glyphs = $stmt->fetchAll();
             }
         }
 
-        function executeSystemEngagement(seed = null) {
+        async function executeSystemEngagement(seed = null) {
 
             let myGlyphSelection = "";
             activeTournamentPool.forEach((glyph) => { myGlyphSelection = myGlyphSelection + glyph.name + " " });
@@ -302,8 +305,34 @@ $glyphs = $stmt->fetchAll();
 
                 document.getElementById('unifiedConfigModal').style.display = 'none';
                 TourneyHalleck = new Tournament(activeTournamentPool, selectedTourneyVariant);
+                await TourneyHalleck.init();
+                if (currentSeriesId != null){ await updateSeriesTourney(TourneyHalleck.dbTourneyId, currentSeriesId, currentGroup); }
                 TourneyHalleck.startTournament();
 
+            }
+        }
+
+        async function updateSeriesTourney(tournament_id, series_id, group) {
+            // console.log(`[DEBUG] Updating Series: ${series_id} with Tournament: ${tournament_id}`);
+            try {
+                const response = await fetch('php/update-series-tournament.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        tournament_id: tournament_id, 
+                        series_id: series_id,
+                        group_label: group 
+                    })
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    console.log(`[Success] Series ${series_id} linked to Tournament ${tournament_id}`);
+                } else {
+                    console.error("[Error] Failed to update series participants:", result.error);
+                }
+            } catch (err) {
+                console.error("[Error] Network failure during series update:", err);
             }
         }
 

@@ -357,6 +357,228 @@ function openTourneyConfig(N, mode, variant){
 function populateTourneyConfig(){
 }
 
+async function initSeriesTourney(series_id, variant, phase_id, group){
+
+    // 0. Fetch data from backend
+    let url = `php/get-series-contestants.php?series_id=${series_id}`;
+    if (phase_id) url += `&phase_id=${phase_id}`;
+    if (group)    url += `&group=${encodeURIComponent(group)}`;
+
+    const response = await fetch(url);
+    const contestants = await response.json();
+    // console.log("[control.js] initSeriesTourney(): contestants = " + JSON.stringify(contestants, null, 2));
+
+    // 1. Set up the selection screen
+    const modal = document.getElementById('tournament-modal');
+    const container = document.getElementById('modal-canvas-container');
+    const modalContent = container.parentElement;
+    container.innerHTML = ''; // Clear previous    
+    modal.style.display = 'flex';
+       
+    if (variant == 'round-robin') {
+
+        if (modalContent) {
+            modalContent.style.width = '';
+            modalContent.style.maxWidth = '';
+        }
+
+        container.style.width = '';
+        container.style.position = '';
+        container.style.minHeight = '';
+
+    }
+
+    if (variant == 'knock-out'){
+
+        if (modalContent) {
+            modalContent.style.width = '95%';
+            modalContent.style.maxWidth = '1000px';
+        }
+
+        container.style.width = '100%';
+        container.style.position = 'relative';
+        container.style.minHeight = '600px';
+
+    }
+
+    const centerX = container.offsetWidth / 2;
+    const centerY = container.offsetHeight / 2;
+    const radius = Math.min(centerX, centerY) * 1.2;    
+
+    modalEngines = []; // this is where we will instantiate the individual Game of Life engines to preview the Glyphs
+
+    const N = contestants.length;
+    contestants.forEach((glyph, i) => {
+
+        let canvasId = null;
+        let canvas = null;
+        let label = null;
+
+        if (variant == 'round-robin'){
+
+            // 1. Calculate position on the Polygon
+            const angle = (i / N) * Math.PI * 2 - (Math.PI / 2);
+            const x = centerX + radius * Math.cos(angle);
+            const y = centerY + radius * Math.sin(angle);
+
+            // 2. Create Canvas Element
+            canvasId = `modal-canvas-${i}`;
+            canvas = document.createElement('canvas');
+            canvas.id = canvasId;
+            canvas.className = 'modal-glyph-canvas';
+            canvas.width = 120; // Size of the mini-display
+            canvas.height = 120;
+            canvas.style.left = `${x}px`;
+            canvas.style.top = `${y}px`;  
+            canvas.style.cursor = 'pointer';
+            canvas.onclick = function() {
+                openSelectionModal(i);
+            };      
+            container.appendChild(canvas);
+
+            // 3. Append labels
+            label = document.createElement('div');
+            labelId = `modal-glyph-label-${i}`;
+            label.id = labelId;
+            label.className = 'modal-glyph-label';    
+            label.style.left = `${x}px`; // Offset the label based on the same X, Y as the canvas
+            label.style.top = `${y}px`;
+
+            if (x > centerX) {
+                label.style.transform = 'translate(65px, -50%)';
+                label.style.alignItems = 'flex-start';
+                label.style.borderLeft = `3px solid ${glyph.intrinsicColor || "#42f485"}`;
+                label.style.borderRight = 'none';
+            } else {
+                label.style.transform = 'translate(-100%, -50%)';
+                label.style.left = `${x - 65}px`; // Shift it left of the canvas
+                label.style.alignItems = 'flex-end';
+                label.style.textAlign = 'right';
+                label.style.borderRight = `3px solid ${glyph.intrinsicColor || "#42f485"}`;
+                label.style.borderLeft = 'none';
+            }
+
+        }
+
+        if (variant == 'knock-out')  {
+            const halfN = N / 2;
+            const isRightSide = i >= halfN;
+            
+            // Determine which column index they are in (0 to halfN - 1)
+            const columnIndex = isRightSide ? i - halfN : i;
+            
+            // Calculate X coordinate (push to far left or far right, leaving padding)
+            const paddingX = 20;       
+            const canvasWidth = 120;      
+            const x = isRightSide ? (container.offsetWidth - paddingX - canvasWidth) : paddingX;
+            
+            // Calculate Y coordinate (evenly spaced vertically)
+            const verticalSpacing = container.offsetHeight / (halfN + 1);
+            const y = verticalSpacing * (columnIndex + 1);
+
+            // 2. Create Canvas Element
+            canvasId = `modal-canvas-${i}`;
+            canvas = document.createElement('canvas');
+            canvas.id = canvasId;
+            canvas.className = 'modal-glyph-canvas';
+            canvas.height = 120;
+            canvas.width = canvasWidth;
+            canvas.style.left = `${x}px`;
+            canvas.style.top = `${y}px`;
+            canvas.style.cursor = 'pointer';
+            canvas.onclick = function() {
+                openSelectionModal(i);
+            };        
+            container.appendChild(canvas);
+
+            // 3. Append labels
+            label = document.createElement('div');
+            labelId = `modal-glyph-label-${i}`;
+            label.id = labelId;
+            label.className = 'modal-glyph-label';    
+            label.style.left = `${x}px`;
+            label.style.top = `${y}px`;
+
+            if (!isRightSide) {
+                // Left side layout (Labels project outwards/inwards correctly)
+                label.style.transform = 'translate(80px, -50%)';
+                label.style.alignItems = 'flex-start';
+                label.style.borderLeft = `3px solid ${glyph.intrinsicColor || "#42f485"}`;
+                label.style.borderRight = 'none';
+            } else {
+                // Right side layout
+                label.style.transform = 'translate(-135%, -50%)';
+                label.style.left = `${x - 15}px`; 
+                label.style.alignItems = 'flex-end';
+                label.style.textAlign = 'right';
+                label.style.borderRight = `3px solid ${glyph.intrinsicColor || "#42f485"}`;
+                label.style.borderLeft = 'none';
+            }
+        }
+
+        // 4. Inject the Data
+        label.innerHTML = `
+            <h3>${glyph.name}</h3>
+            <div class="modal-glyph-stats">
+                <span>G:<span class="stat-val">${glyph.gen}</span></span>
+                <span>P:<span class="stat-val">${glyph.peak}</span></span>
+                <span>MN:<span class="stat-val">${glyph.min}</span></span>
+                <span>MX:<span class="stat-val">${glyph.max}</span></span>
+            </div>
+        `;
+
+        // Apply the glyph's unique color to the border
+        label.style.borderLeftColor = glyph.intrinsicColor || "#42f485";
+
+        container.appendChild(label);
+
+        // 5. Initialize the LifeEngine 
+        const engine = new LifeEngine(canvasId, 16);
+        engine.intrinsicColor = glyph.intrinsicColor || "#42f485";
+        engine.loadFromBinary(glyph.bin);        
+        modalEngines.push(engine);
+
+        let lastTime = 0;
+        const throttleSpeed = 100; // The delay in milliseconds. Higher = Slower.
+        animateModalPreview();
+
+        function animateModalPreview(timestamp) {
+            // 1. Check if the modal is still open
+            const modal = document.getElementById('tournament-modal');
+            if (!modal || modal.style.display === 'none') return;
+
+            // 2. Calculate how much time has passed since the last update
+            const deltaTime = timestamp - lastTime;
+
+            // 3. Only update the LifeEngine logic if enough time has elapsed
+            if (deltaTime > throttleSpeed) {
+                modalEngines.forEach(engine => {
+                    engine.computeNextGeneration(); 
+                    engine.render(); 
+                });
+                lastTime = timestamp; // Reset the timer
+            }
+
+            // 4. Keep the loop running smoothly
+            requestAnimationFrame(animateModalPreview);
+        }
+
+    });
+
+    // 6a. Set up parameters
+    currentActiveMode = 'tournament';
+    selectedTournamentN = N;
+    currentSeriesId = series_id;
+    currentGroup = group;
+    console.log(`[DEBUG][control.js] initSeriesTourney(): currentSeriesId = ${currentSeriesId}.`);
+
+    // 6b. Set up the active pool
+    activeTournamentPool = contestants.map(contestant => {
+        return GlyphRegistry.find(glyph => glyph.name.toUpperCase() === contestant.name);
+    }).filter(glyph => glyph !== undefined);
+
+}
+
 function closeTourneyConfig(){
     document.getElementById('tournament-modal').style.display = 'none';
     executeSystemEngagement(null);
