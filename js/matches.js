@@ -537,7 +537,8 @@ class Tournament {
 
             this.recordResult(glyphA, glyphB, myMatch.matchScore.p1, myMatch.matchScore.p2);
 
-            tourneyVisualizer.updateEdge(document.getElementById('name1').innerText, document.getElementById('name2').innerText);
+            // tourneyVisualizer.updateEdge(document.getElementById('name1').innerText, document.getElementById('name2').innerText);
+            tourneyVisualizer.updateEdge(glyphA, glyphB);
             tourneyVisualizer.render();
             tourneyLeaderboard.render(this.standings);
 
@@ -573,7 +574,7 @@ class TournamentVisualizer {
         this.mode = mode;
 
         this.nodes = [];
-        this.edgeStatus = {}; 
+        this.edgeStatus = {}; // Key: "id1_id2", Value: count (0, 1, 2)
         
         this.maxRounds = Math.ceil(Math.log2(contestants.length));
         this.currentVisualRound = 0;
@@ -681,6 +682,7 @@ class TournamentVisualizer {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
         if (this.mode === 'round-robin') {
+            console.log(`[matches.js] TournamentVisualizer{}: Calling rendererRoundRobin(${activeP1Name},${activeP2Name})`);
             this.renderRoundRobin(activeP1Name, activeP2Name);
         } 
         if (this.mode === 'knock-out') {
@@ -690,6 +692,13 @@ class TournamentVisualizer {
 
     renderRoundRobin(activeP1Name, activeP2Name) {
         const ctx = this.ctx;
+
+        console.log("[matches.js] TournamentVisualizer{}: edgeStatus = ");
+        console.table(this.edgeStatus);
+
+        console.log("[matches.js] TournamentVisualizer{}: nodes = ");
+        console.table(this.nodes);
+
         for (let i = 0; i < this.nodes.length; i++) {
             for (let j = i + 1; j < this.nodes.length; j++) {
                 const n1 = this.nodes[i];
