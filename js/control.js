@@ -571,7 +571,7 @@ async function initSeriesTourney(series_id, variant, phase_id, group){
     currentSeriesId = series_id;
     currentGroup = group;
     document.getElementById("tournament-variant-select").value = variant;
-    document.getElementById("matchNameInput").value = `W:${series_id}-P:${phase_id}-G:${group}`;
+    document.getElementById("matchNameInput").value = `Week ${series_id}, Phase ${phase_id}, Group ${group}`;
     console.log(`[DEBUG][control.js] initSeriesTourney(): currentSeriesId = ${currentSeriesId}.`);
 
     // 6b. Set up the active pool
