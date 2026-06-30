@@ -591,6 +591,10 @@ function showMatchSummaryModal(matchInstance, onCompleteCallback) {
     currentSummaryCallback = onCompleteCallback;
     if (matchSummaryTimer) clearTimeout(matchSummaryTimer); // Clear any leftover timers just in case
     
+    // reset win indicators
+    document.getElementById("p1WinIndicator").innerText = "";
+    document.getElementById("p2WinIndicator").innerText = "";
+
     // 1. Set the Title/Designation
     document.getElementById('summary-designation').innerText = matchInstance.designation.toUpperCase() + " SUMMARY";
     
@@ -620,16 +624,8 @@ function showMatchSummaryModal(matchInstance, onCompleteCallback) {
     // Compare final round statistics to find the match winner
     const p1Rounds = matchInstance.roundsWonByGlyph.p1;
     const p2Rounds = matchInstance.roundsWonByGlyph.p2;
-
-    if (p1Rounds > p2Rounds) {
-        p1NameEl.classList.add('winner-pulse-glow');
-        //p1NameEl.style.color = "#ffffff"; 
-        p1NameEl.style.textShadow = "none";
-    } else if (p2Rounds > p1Rounds) {
-        p2NameEl.classList.add('winner-pulse-glow');
-        //p2NameEl.style.color = "#ffffff";
-        p2NameEl.style.textShadow = "none";
-    }
+    let p1MatchScore = 0;
+    let p2MatchScore = 0;
 
     // 3. Populate the Round Breakdown Matrix
     const container = document.getElementById('summary-rounds-container');
@@ -645,7 +641,9 @@ function showMatchSummaryModal(matchInstance, onCompleteCallback) {
 
         // Initialize display strings with default values
         let p1Display = round.p1_final_score;
+        p1MatchScore += round.p1_final_score;
         let p2Display = round.p2_final_score;
+        p2MatchScore += round.p2_final_score;
 
         // Default style weights
         let p1Style = 'color: #aaa;';
@@ -679,7 +677,24 @@ function showMatchSummaryModal(matchInstance, onCompleteCallback) {
         container.appendChild(row);
     });
 
-    // 4. Reveal Modal
+    // 4a. Display match scores and indicate winner
+
+    document.getElementById('summary-p1-total-score').innerText = p1MatchScore;
+    document.getElementById('summary-p2-total-score').innerText = p2MatchScore;
+
+    if (p1MatchScore > p2MatchScore) {
+        p1NameEl.classList.add('winner-pulse-glow');
+        //p1NameEl.style.color = "#ffffff"; 
+        p1NameEl.style.textShadow = "none";
+        document.getElementById("p1WinIndicator").innerText = "*** WINNER ***";
+    } else if (p2MatchScore > p1MatchScore) {
+        p2NameEl.classList.add('winner-pulse-glow');
+        //p2NameEl.style.color = "#ffffff";
+        p2NameEl.style.textShadow = "none";
+        document.getElementById("p2WinIndicator").innerText = "*** WINNER ***";
+    }
+
+    // 4b. Reveal Modal
     document.getElementById('matchSummaryModal').style.display = 'flex';
 
     // 5. Automatic Countdown Control (if tournamentId is present, we know it's a tournament match, harr harr!)

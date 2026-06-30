@@ -154,12 +154,18 @@
 
         <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.02); padding: 15px; border: 1px solid #222; text-align: center; margin-bottom: 15px;">
             <div style="flex: 1;">
+                <div style="font-size: 0.75rem; color: var(--frame-grey); margin-bottom: 4px;"><span id="p1WinIndicator" style="color: var(--accent-green); font-weight: bold;"></span></div>
                 <h3 id="summary-p1-name" style="margin: 0 0 5px 0; color: #fff;">-</h3>
+                <div style="font-size: 0.75rem; color: var(--frame-grey); margin-bottom: 4px;">TOTAL SCORE: <span id="summary-p1-total-score" style="color: #fff; font-weight: bold;">0</span></div>
                 <div style="font-size: 0.75rem; color: var(--frame-grey);">ROUNDS WON: <span id="summary-p1-rounds" style="color: var(--accent-green); font-weight: bold;">0</span></div>
             </div>
+            
             <div style="font-size: 1.5rem; font-weight: bold; color: var(--frame-grey); padding: 0 15px;">VS</div>
+            
             <div style="flex: 1;">
+                <div style="font-size: 0.75rem; color: var(--frame-grey); margin-bottom: 4px;"><span id="p2WinIndicator" style="color: var(--accent-green); font-weight: bold;"></span></div>
                 <h3 id="summary-p2-name" style="margin: 0 0 5px 0; color: #fff;">-</h3>
+                <div style="font-size: 0.75rem; color: var(--frame-grey); margin-bottom: 4px;">TOTAL SCORE: <span id="summary-p2-total-score" style="color: #fff; font-weight: bold;">0</span></div>
                 <div style="font-size: 0.75rem; color: var(--frame-grey);">ROUNDS WON: <span id="summary-p2-rounds" style="color: var(--accent-green); font-weight: bold;">0</span></div>
             </div>
         </div>
@@ -171,7 +177,7 @@
                 <span style="width: 40%; text-align: right;">P2 POINTS</span>
             </div>
             <div id="summary-rounds-container">
-                </div>
+            </div>
         </div>
 
         <button onclick="closeMatchSummaryModal();" class="load-btn" style="width: 100%; padding: 12px; border-color: var(--accent-green); color: var(--accent-green); font-weight: bold; background: rgba(0,255,0,0.02); font-size: 0.9rem; letter-spacing: 2px; cursor: pointer;">
