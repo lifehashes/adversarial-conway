@@ -718,6 +718,7 @@ function resetUI(){
 
     resetTopLeft();
     resetTopCentre();
+    resetPlayerPanels();
 
     resetGlyph(1);
     resetGlyph(2);
@@ -750,6 +751,14 @@ function resetUI(){
         document.getElementById("match-p2").innerText = "0";
         document.getElementById("rounds-won-p2").innerText = "0";
         document.getElementById("gamestatus").innerText = "SYSTEM READY // AWAITING INPUT";
+
+    }
+
+    function resetPlayerPanels(){
+
+        document.querySelectorAll(".player-box").forEach(box => {
+            box.style.border = "1px solid rgba(255,255,255,0.1)";
+        });
 
     }
 

@@ -246,9 +246,13 @@ class Match{
             if (this.matchScore.p1 > this.matchScore.p2){
                 document.getElementById("high-score-p1").style.color = "var(--accent-green)";
                 document.getElementById("high-score-p2").style.color = "#404040";
+                document.getElementsByClassName("p1-box")[0].style.border = "1px solid var(--accent-green)";
+                document.getElementsByClassName("p2-box")[0].style.border = "1px solid rgba(255,255,255,0.1)";
             } else {
                 document.getElementById("high-score-p1").style.color = "#404040";
                 document.getElementById("high-score-p2").style.color = "var(--accent-green)";
+                document.getElementsByClassName("p1-box")[0].style.border = "1px solid rgba(255,255,255,0.1)";
+                document.getElementsByClassName("p2-box")[0].style.border = "1px solid var(--accent-green)";
             }
         }
 
