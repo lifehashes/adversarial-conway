@@ -163,11 +163,11 @@ class Match{
 
     randomEvents(){
 
-        const rndInt = () => Math.floor(Math.random() * 1000);
+        const rndInt = () => Math.floor(Math.random() * 20000);
         let roll = rndInt();
         // console.log(`[matches.js] Match{}.randomEvents(): roll = ${roll}`);
 
-        if (roll >= 1000){
+        if (roll >= 19998){
 
             const targetUnit = Math.random() < 0.5 ? unit1 : unit2;
             targetUnit.containment = false;
@@ -564,6 +564,10 @@ class Tournament {
                 if(this.mode === 'knock-out' && this.survivors.length === 1) {
                     tourneyVisualizer.setGrandChampion(this.survivors[0]);
                     console.log(`[tournament.js] GRAND CHAMPION: ${this.survivors[0].name}`);
+                    setTimeout(() => {
+                        const safeName = encodeURIComponent(this.survivors[0].name);
+                        window.location.href = `champion.php?glyph_name=${safeName}`;
+                    }, 50);
                 }
             }
         }
