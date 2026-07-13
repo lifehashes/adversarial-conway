@@ -179,28 +179,78 @@ class LifeEngine {
 }
 
 class ArenaEngine {
-    constructor(canvasId, width, height, gridSize) {
-        this.canvas = document.getElementById(canvasId);
-        this.ctx = this.canvas.getContext('2d');
+    constructor(containerId, gridSize) {
+        this.container = document.getElementById(containerId);
         
-        // 2. Set the VISUAL size of the canvas
-        this.canvas.width = width;
-        this.canvas.height = height;
+        // 1. Grab dynamic available sizes directly from the DOM parent container
+        const width = this.container.clientWidth;
+        const height = this.container.clientHeight;
 
-        // 3. Set the LOGICAL grid dimensions
         this.rows = gridSize;
-        this.cols = Math.floor(gridSize * (width / height));
+        this.cols = Math.floor(gridSize * (width / height)); // Keeps logic ratio healthy
+
+        // 2. Setup Three.js with dynamic layout values
+        this.scene = new THREE.Scene();
+        this.scene.rotation.order = 'YXZ';
+        this.camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
+        this.renderer = new THREE.WebGLRenderer({ antialias: true });
         
-        // Use a 2D array of objects to store Charge and Owner
-        // charge: 0.0 to 1.0 (magnitude)
-        // owner: 0 (none), 1 (P1), 2 (P2)
+        this.renderer.setSize(width, height);
+        this.container.appendChild(this.renderer.domElement);
+
+        this.camera.position.set(0, 18, 42); 
+
+        // Add some basic lighting so we can see the 3D form
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        this.scene.add(ambientLight);
+        const pointLight = new THREE.PointLight(0xffffff, 0.8);
+        pointLight.position.set(20, 30, 40);
+        this.scene.add(pointLight);     
+
+        // Effect Composer
+        this.composer = new EffectComposer(this.renderer);
+        this.composer.addPass(new RenderPass(this.scene, this.camera));
+
+        const bloomResolution = new THREE.Vector2(width, height);
+        const bloomPass = new UnrealBloomPass(bloomResolution, 2.5, 0.4, 0.7);
+        this.composer.addPass(bloomPass);
+
+        const outputPass = new OutputPass();
+        this.composer.addPass(outputPass);
+
+        // 2. Torus Dimensions
+        this.R = 30; // Major radius
+        this.r = 6;  // Minor radius
+
+        // torus outlilnes
+        const torusGeo = new THREE.TorusGeometry(this.R, this.r, 16, 32);
+
+        // 2. Extract only the distinct outer edges to remove messy diagonal triangle lines
+        const edgeGeo = new THREE.EdgesGeometry(torusGeo);
+
+        // 3. Use LineBasicMaterial (Lines do not feed into bloom nearly as aggressively as solid wireframe meshes)
+        const lineMaterial = new THREE.LineBasicMaterial({
+            color: 0x00ff66,
+            transparent: true,
+            opacity: 0.08, // Drop opacity way down to a ghostly faint whisper
+            blending: THREE.NormalBlending // Prevents colors from compounding into blinding white
+        });
+
+        // 4. Instantiate as a LineSegments object instead of a Mesh
+        this.torusWireframe = new THREE.LineSegments(edgeGeo, lineMaterial);
+        this.scene.add(this.torusWireframe);
+
+        // 3. Initialize your logical simulation grid (Kept EXACTLY the same)
         this.grid = Array.from({ length: this.rows }, () => 
             Array.from({ length: this.cols }, () => ({ 
                 charge: 0, 
                 owner: 0, 
-                justFlipped: 0 // Track frames remaining for the highlight effect
+                justFlipped: 0 
             }))
         );
+
+        // 4. Instantiation of 3D visual representations
+        this.meshGrid = this.create3DGridElements();
         
         // Kinematics for the "Roaming" Glyphs
         this.p1State = { x: 0, y: 0, vx: 0, vy: 0 };
@@ -209,6 +259,51 @@ class ArenaEngine {
         this.iteration = 0;
         this.seed = 0;
         this.mode = 'combative';
+    }
+
+    onWindowResize() {
+        const width = this.container.clientWidth;
+        const height = this.container.clientHeight;
+
+        this.camera.aspect = width / height;
+        this.camera.updateProjectionMatrix();
+
+        this.renderer.setSize(width, height);
+        this.composer.setSize(width, height); // Keeps postprocessing buffers locked to screen size!
+    }
+
+    create3DGridElements() {
+        const meshGrid = Array.from({ length: this.rows }, () => Array(this.cols).fill(null));
+        
+        // Share one geometry/material baseline to conserve GPU memory
+        const cellGeo = new THREE.SphereGeometry(0.3, 8, 8); 
+
+        for (let y = 0; y < this.rows; y++) {
+            for (let x = 0; x < this.cols; x++) {
+                // Parametric angles mapping
+                const u = (x / this.cols) * Math.PI * 2;
+                const v = (y / this.rows) * Math.PI * 2;
+
+                // Compute Toroidal 3D positions
+                const posX = (this.R + this.r * Math.cos(v)) * Math.cos(u);
+                const posY = (this.R + this.r * Math.cos(v)) * Math.sin(u);
+                const posZ = this.r * Math.sin(v);
+
+                // Create unique material instance for dynamic coloring/opacity per cell
+                const cellMat = new THREE.MeshPhongMaterial({
+                    color: 0x000000,
+                    transparent: true,
+                    opacity: 0.0 // Invisible by default when unowned
+                });
+
+                const mesh = new THREE.Mesh(cellGeo, cellMat);
+                mesh.position.set(posX, posY, posZ);
+                
+                this.scene.add(mesh);
+                meshGrid[y][x] = mesh; // Store reference linked to your logical grid map
+            }
+        }
+        return meshGrid;
     }
 
     // A fast, seedable 32-bit PRNG
@@ -370,65 +465,90 @@ class ArenaEngine {
     }
 
     render(color1, color2) {
-        const cellSize = this.canvas.width / this.cols;
-        const radius = (cellSize / 2) * 0.9; // 90% of half-cell width for a crisp look
-        
-        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        // Convert hex string colors from your game state to Three.js color instances
+        const threeColor1 = new THREE.Color(color1);
+        const threeColor2 = new THREE.Color(color2);
 
         for (let y = 0; y < this.rows; y++) {
             for (let x = 0; x < this.cols; x++) {
                 const cell = this.grid[y][x];
-                
+                const mesh = this.meshGrid[y][x];
+
                 if (cell.owner !== 0) {
-                    const baseColor = (cell.owner === 1) ? color1 : color2;
+                    // Map logical ownership and charge to 3D properties
+                    mesh.material.color.copy((cell.owner === 1) ? threeColor1 : threeColor2);
+                    mesh.material.opacity = Math.abs(cell.charge);
                     
-                    // Map charge to Opacity/Saturation
-                    this.ctx.globalAlpha = Math.abs(cell.charge); 
-                    this.ctx.fillStyle = baseColor;
-                    
-                    // Add glow for high-charge cells
-                    if (cell.charge > 0.7) {
-                        this.ctx.shadowBlur = 8;
-                        this.ctx.shadowColor = baseColor;
-                    } else {
-                        this.ctx.shadowBlur = 0;
-                    }
-
-                    // Draw the Circle
-                    this.ctx.beginPath();
-                    const centerX = x * cellSize + (cellSize / 2);
-                    const centerY = y * cellSize + (cellSize / 2);
-                    this.ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
-                    this.ctx.fill();
-
-                    // DRAW HIGHLIGHT
                     if (cell.justFlipped > 0) {
-                        this.ctx.globalAlpha = cell.justFlipped / 8; // Fade out highlight
-                        this.ctx.strokeStyle = "#FFFFFF"; // High contrast white
-                        this.ctx.lineWidth = 2;
-                        this.ctx.stroke();
+                        const flashIntensity = cell.justFlipped / 8; // Fades from 1.0 down to 0.0
                         
-                        cell.justFlipped--; // Decay the highlight timer
+                        // OVERDRIVE: Multiply by 5 or 10 to push the brightness past standard white
+                        const boost = flashIntensity * 5.0; 
+                        mesh.material.emissive.setRGB(boost, boost, boost);
+                        
+                        // EXPLOSIVE SCALE: Make the scaling pop much more dramatic (e.g., double the size)
+                        const scaleFactor = 1.0 + (flashIntensity * 1.5); 
+                        mesh.scale.set(scaleFactor, scaleFactor, scaleFactor);
+                        
+                        cell.justFlipped--; //
+                    } else {
+                        mesh.material.emissive.setRGB(0, 0, 0); 
+                        mesh.scale.set(1, 1, 1);
                     }
 
+                } else {
+                    // Return to unowned baseline state
+                    mesh.material.opacity = 0.0;
+                    mesh.scale.set(1, 1, 1);
                 }
             }
         }
-        // Reset global state for the next frame
-        this.ctx.globalAlpha = 1.0;
-        this.ctx.shadowBlur = 0;
+
+        // Spin the whole arena slightly over time to show off the 3D depth!
+        /*
+        this.scene.rotation.y += 0.001;
+        const maxTiltRadians = (10 * Math.PI) / 180; // Converts 10° to radians (approx 0.174)
+        const tiltOscillation = Math.sin(this.iteration * 0.01) * maxTiltRadians;
+        this.scene.rotation.x = (Math.PI / 2) + tiltOscillation;
+        */
+
+        // 1. Keep your slow spin around the vertical axis
+        this.scene.rotation.y += 0.001;
+
+        // 2. Adjust base tilt: (Math.PI / 2) is 90 degrees flat. 
+        // Subtracting 0.5 radians (roughly 28 degrees) elevates the camera angle from above.
+        const baseTiltFromAbove = (Math.PI / 2) - 0.8;
+
+        const maxTiltRadians = (10 * Math.PI) / 180; // +/- 10 degrees oscillation range
+        const tiltOscillation = Math.sin(this.iteration * 0.01) * maxTiltRadians;
+
+        // 3. Set the final combined angle
+        //this.scene.rotation.x = baseTiltFromAbove + tiltOscillation;
+        this.scene.rotation.x = baseTiltFromAbove;
+        // this.scene.rotation.x += 0.001;
+
+        // Trigger WebGL execution pass
+        // this.renderer.render(this.scene, this.camera);
+        this.composer.render();
     }
 
     reset() {
-        // Clear the grid state back to neutral
+        // 1. Reset simulation values (Kept the same)
         for (let y = 0; y < this.rows; y++) {
             for (let x = 0; x < this.cols; x++) {
                 this.grid[y][x] = { charge: 0, owner: 0, justFlipped: 0 };
+                
+                // 2. Hide the corresponding 3D cell mesh instantly
+                if (this.meshGrid && this.meshGrid[y][x]) {
+                    this.meshGrid[y][x].material.opacity = 0.0;
+                    this.meshGrid[y][x].scale.set(1, 1, 1);
+                }
             }
         }
-        // The positions and velocities will be overwritten by setSeed() in the runDuel call
         this.iteration = 0;
-        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        
+        // Optional: Reset your camera rotation or position here if you want it to snap back
+        this.scene.rotation.set(0, 0, 0);
     }
 
 }

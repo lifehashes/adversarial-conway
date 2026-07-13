@@ -16,7 +16,15 @@ $glyphs = $stmt->fetchAll();
     <SCRIPT SRC="js/adv-conw-hash.js"></SCRIPT>
     <SCRIPT SRC="js/analytics.js"></SCRIPT>
     <SCRIPT SRC="js/control.js"></SCRIPT>
-    <SCRIPT SRC="js/matches.js"></SCRIPT>    
+    <SCRIPT SRC="js/matches.js"></SCRIPT> 
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+        }
+    }
+    </script>   
 </head>
 <body>
 
@@ -103,7 +111,7 @@ $glyphs = $stmt->fetchAll();
             </div>
 
             <div class="arena-container">
-                <canvas id="canvasA" width="640" height="320"></canvas>
+                <div id="canvasA" style="width: 100%; height: 550px; background-color:#000000; position: relative;"></div>
                 <div class="analytics-tab">
                     <h3>LIVE PERFORMANCE (SCORE: THICK | DELTA: THIN)</h3>
                     <canvas id="unifiedChart" width="600" height="200"></canvas>
@@ -156,6 +164,27 @@ $glyphs = $stmt->fetchAll();
     </div>
 
     <?php include_once __DIR__ . '/modals.html'; ?>
+
+    <script type="module">
+        // Now you can import Three.js cleanly using the short names!
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+        import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+        import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+        import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+
+        window.THREE = THREE;
+
+        window.EffectComposer = EffectComposer;
+        window.RenderPass = RenderPass;
+        window.UnrealBloomPass = UnrealBloomPass;
+        window.OutputPass = OutputPass;
+
+        // Test to see if it works
+        console.log("Three.js loaded successfully!", THREE.REVISION);
+    </script>
 
     <script>
 

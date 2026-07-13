@@ -42,8 +42,12 @@ class Match{
 
             const executeRound = () => {
 
+                document.getElementById("canvasA").innerHTML = "";
                 const arenaGridSize = 96; 
-                arena = new ArenaEngine("canvasA", 600, 300, arenaGridSize); 
+                arena = new ArenaEngine("canvasA", arenaGridSize); 
+                window.addEventListener('resize', () => {
+                    arena.onWindowResize();
+                });
 
                 this.repeatValue = Math.floor(Math.random() * 1000000); 
                 if (this.externalSeed != null){ 
