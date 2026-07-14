@@ -418,7 +418,6 @@ class ArenaEngine {
                         }
 
                     } else {
-                        // OLD COMPETITIVE LOGIC:
                         if (cell.owner === 0 || cell.owner === playerNum) {
                             cell.owner = playerNum;
                             cell.charge = Math.min(1.0, cell.charge + chargePower);
@@ -442,6 +441,12 @@ class ArenaEngine {
                     if (cell.owner === 1) scoreP1++;
                     else if (cell.owner === 2) scoreP2++;
                 }
+                /* PENALTY CLAUSE FOR A GLYPH THAT LOST CELLS TO THE OPPONENT
+                if (cell.justFlipped > 0){
+                    if (cell.owner === 1) scoreP2 = parseInt(scoreP2 - 10);
+                    if (cell.owner === 2) scoreP1 = parseInt(scoreP1 - 10);
+                }
+                */
             }
         }
 
