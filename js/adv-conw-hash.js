@@ -21,14 +21,12 @@ class LifeEngine {
 
         this.originBinary = null;
         this.containment = true;
-
     }
 
     getBinaryString() {
         return this.grid.flat().join('');
     }
 
-    // Initialize an empty 2D array
     createGrid() {
         return Array.from({ length: this.n }, () => Array(this.n).fill(0));
     }
@@ -56,15 +54,15 @@ class LifeEngine {
         this.render();
     }
 
-    // The core GOL logic with Toroidal wrapping
+    // Core GOL logic with optional Toroidal wrapping
     computeNextGeneration() {
         let nextGrid = this.createGrid();
 
         for (let y = 0; y < this.n; y++) {
             for (let x = 0; x < this.n; x++) {
-
-                let neighbors = null;
-                if (this.containment == true){ neighbors = this.countNeighbors(x, y); } else { neighbors = this.countNeighborsUncontained(x, y); }
+                const neighbors = this.containment 
+                    ? this.countNeighbors(x, y) 
+                    : this.countNeighborsUncontained(x, y);
 
                 const currentState = this.grid[y][x];
 
@@ -78,18 +76,15 @@ class LifeEngine {
             }
         }
 
-        // Calculate hash of the potential next state
+        // Calculate hash of potential next state for cycle detection
         const nextBinary = nextGrid.flat().join('');
         const nextHash = sha256(nextBinary);
 
-        // Check if this state has appeared before (Cycle Detection)
         if (this.history.has(nextHash)) {
             this.isActive = false;
-            // console.log(`Unit at ${this.canvas.id} halted: State already exists in history.`);
             return false; 
         }
 
-        // State is unique: Proceed with update
         this.grid = nextGrid;
         this.iteration++;
         this.currentHash = nextHash;
@@ -102,8 +97,6 @@ class LifeEngine {
         for (let i = -1; i <= 1; i++) {
             for (let j = -1; j <= 1; j++) {
                 if (i === 0 && j === 0) continue;
-                
-                // Torus wrapping logic: (coord + max) % max
                 const nx = (x + j + this.n) % this.n;
                 const ny = (y + i + this.n) % this.n;
                 count += this.grid[ny][nx];
@@ -117,11 +110,8 @@ class LifeEngine {
         for (let i = -1; i <= 1; i++) {
             for (let j = -1; j <= 1; j++) {
                 if (i === 0 && j === 0) continue;
-                
                 const nx = x + j;
                 const ny = y + i;
-                
-                // Fixed Box Border Logic: Check if neighbor coordinate is inside the grid
                 if (nx >= 0 && nx < this.n && ny >= 0 && ny < this.n) {
                     count += this.grid[ny][nx];
                 }
@@ -132,7 +122,7 @@ class LifeEngine {
 
     render() {
         const cellSize = this.canvas.width / this.n;
-        const radius = (cellSize / 2) * 0.8; // 80% of half-cell width for spacing
+        const radius = (cellSize / 2) * 0.8;
         
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         
@@ -140,8 +130,6 @@ class LifeEngine {
             for (let x = 0; x < this.n; x++) {
                 if (this.grid[y][x] === 1) {
                     this.ctx.beginPath();
-                    
-                    // Calculate center point of the cell
                     const centerX = x * cellSize + (cellSize / 2);
                     const centerY = y * cellSize + (cellSize / 2);
                     
@@ -154,7 +142,6 @@ class LifeEngine {
                 }
             }
         }
-        // Reset shadow so it doesn't affect other drawing operations
         this.ctx.shadowBlur = 0;
     }
 
@@ -172,24 +159,26 @@ class LifeEngine {
         this.iteration = 0;
         this.history.clear();
         this.isActive = true;
-        this.loadFromBinary(this.originBinary);
         this.containment = true;
+        
+        // Safe check to avoid 'Cannot read properties of null (reading length)'
+        if (this.originBinary) {
+            this.loadFromBinary(this.originBinary);
+        }
     }
-
 }
 
 class ArenaEngine {
     constructor(containerId, gridSize) {
         this.container = document.getElementById(containerId);
         
-        // 1. Grab dynamic available sizes directly from the DOM parent container
         const width = this.container.clientWidth;
         const height = this.container.clientHeight;
 
         this.rows = gridSize;
-        this.cols = Math.floor(gridSize * (width / height)); // Keeps logic ratio healthy
+        this.cols = Math.floor(gridSize * (width / height));
 
-        // 2. Setup Three.js with dynamic layout values
+        // Three.js Setup
         this.scene = new THREE.Scene();
         this.scene.rotation.order = 'YXZ';
         this.camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
@@ -198,49 +187,80 @@ class ArenaEngine {
         this.renderer.setSize(width, height);
         this.container.appendChild(this.renderer.domElement);
 
-        this.camera.position.set(0, 18, 42); 
+        const getRandomInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+        this.camera.position.set(getRandomInt(-50, 50), getRandomInt(-50, 50), getRandomInt(-50, 50));
 
-        // Add some basic lighting so we can see the 3D form
+        // Lighting
         const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
         this.scene.add(ambientLight);
         const pointLight = new THREE.PointLight(0xffffff, 0.8);
         pointLight.position.set(20, 30, 40);
         this.scene.add(pointLight);     
 
-        // Effect Composer
+        // Post-Processing
         this.composer = new EffectComposer(this.renderer);
         this.composer.addPass(new RenderPass(this.scene, this.camera));
 
         const bloomResolution = new THREE.Vector2(width, height);
         const bloomPass = new UnrealBloomPass(bloomResolution, 2.5, 0.4, 0.7);
         this.composer.addPass(bloomPass);
+        this.composer.addPass(new OutputPass());
 
-        const outputPass = new OutputPass();
-        this.composer.addPass(outputPass);
+        // Background
+        const textureLoader = new THREE.TextureLoader();
+        textureLoader.load('js/qwantani_night_puresky.jpg', (texture) => {
+            texture.mapping = THREE.EquirectangularReflectionMapping;
+            texture.colorSpace = THREE.SRGBColorSpace;
+            this.scene.background = texture;
+            this.scene.backgroundIntensity = 0.35;
+        });
 
-        // 2. Torus Dimensions
+        // Orbit Controls
+        this.controls = new OrbitControls(this.camera, this.renderer.domElement);
+        this.controls.enableDamping = true;
+        this.controls.dampingFactor = 0.05;
+        this.controls.enablePan = true;
+        this.controls.minDistance = 5;
+        this.controls.maxDistance = 150;
+
+        // Torus Dimensions
         this.R = 30; // Major radius
         this.r = 6;  // Minor radius
 
-        // torus outlilnes
+        // Base Torus Wireframe
         const torusGeo = new THREE.TorusGeometry(this.R, this.r, 16, 32);
-
-        // 2. Extract only the distinct outer edges to remove messy diagonal triangle lines
         const edgeGeo = new THREE.EdgesGeometry(torusGeo);
-
-        // 3. Use LineBasicMaterial (Lines do not feed into bloom nearly as aggressively as solid wireframe meshes)
         const lineMaterial = new THREE.LineBasicMaterial({
             color: 0x00ff66,
             transparent: true,
-            opacity: 0.08, // Drop opacity way down to a ghostly faint whisper
-            blending: THREE.NormalBlending // Prevents colors from compounding into blinding white
+            opacity: 0.08,
+            blending: THREE.NormalBlending
         });
 
-        // 4. Instantiate as a LineSegments object instead of a Mesh
         this.torusWireframe = new THREE.LineSegments(edgeGeo, lineMaterial);
         this.scene.add(this.torusWireframe);
 
-        // 3. Initialize your logical simulation grid (Kept EXACTLY the same)
+        // GLYPH HUD INDICATOR BANDS (Wireframe slices representing 16-step span)
+        const glyphWidth = 1;
+        const arcLength = (glyphWidth / this.cols) * Math.PI * 2;
+        const bandGeo = new THREE.CylinderGeometry(
+            this.r * 1.05, 
+            this.r * 1.05, 
+            arcLength * this.R, 
+            16, 1, true
+        );
+        const bandEdgeGeo = new THREE.EdgesGeometry(bandGeo);
+
+        this.p1BandMat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.4, blending: THREE.AdditiveBlending });
+        this.p2BandMat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.4, blending: THREE.AdditiveBlending });
+
+        this.p1IndicatorBand = new THREE.LineSegments(bandEdgeGeo, this.p1BandMat);
+        this.p2IndicatorBand = new THREE.LineSegments(bandEdgeGeo, this.p2BandMat);
+
+        this.scene.add(this.p1IndicatorBand);
+        this.scene.add(this.p2IndicatorBand);
+
+        // Simulation Grid and 3D Nodes
         this.grid = Array.from({ length: this.rows }, () => 
             Array.from({ length: this.cols }, () => ({ 
                 charge: 0, 
@@ -249,10 +269,9 @@ class ArenaEngine {
             }))
         );
 
-        // 4. Instantiation of 3D visual representations
         this.meshGrid = this.create3DGridElements();
         
-        // Kinematics for the "Roaming" Glyphs
+        // Glyph Kinematics
         this.p1State = { x: 0, y: 0, vx: 0, vy: 0 };
         this.p2State = { x: 0, y: 0, vx: 0, vy: 0 };
         
@@ -269,44 +288,38 @@ class ArenaEngine {
         this.camera.updateProjectionMatrix();
 
         this.renderer.setSize(width, height);
-        this.composer.setSize(width, height); // Keeps postprocessing buffers locked to screen size!
+        this.composer.setSize(width, height);
     }
 
     create3DGridElements() {
         const meshGrid = Array.from({ length: this.rows }, () => Array(this.cols).fill(null));
-        
-        // Share one geometry/material baseline to conserve GPU memory
         const cellGeo = new THREE.SphereGeometry(0.3, 8, 8); 
 
         for (let y = 0; y < this.rows; y++) {
             for (let x = 0; x < this.cols; x++) {
-                // Parametric angles mapping
                 const u = (x / this.cols) * Math.PI * 2;
                 const v = (y / this.rows) * Math.PI * 2;
 
-                // Compute Toroidal 3D positions
                 const posX = (this.R + this.r * Math.cos(v)) * Math.cos(u);
                 const posY = (this.R + this.r * Math.cos(v)) * Math.sin(u);
                 const posZ = this.r * Math.sin(v);
 
-                // Create unique material instance for dynamic coloring/opacity per cell
                 const cellMat = new THREE.MeshPhongMaterial({
                     color: 0x000000,
                     transparent: true,
-                    opacity: 0.0 // Invisible by default when unowned
+                    opacity: 0.0
                 });
 
                 const mesh = new THREE.Mesh(cellGeo, cellMat);
                 mesh.position.set(posX, posY, posZ);
                 
                 this.scene.add(mesh);
-                meshGrid[y][x] = mesh; // Store reference linked to your logical grid map
+                meshGrid[y][x] = mesh;
             }
         }
         return meshGrid;
     }
 
-    // A fast, seedable 32-bit PRNG
     seededRandom() {
         this.seed |= 0; 
         this.seed = this.seed + 0x9e3779b9 | 0;
@@ -320,29 +333,23 @@ class ArenaEngine {
     setSeed(val) {
         this.seed = val;
 
-        // 1. Randomize Vertical Starting Positions (Keep Horizontal at Margins)
-        // We leave a small margin (5 units) from the top/bottom edges
         const verticalMargin = 5;
         const spawnXMargin = 5;
         
         this.p1State.x = spawnXMargin;
         this.p1State.y = verticalMargin + (this.seededRandom() * (this.rows - (verticalMargin * 2)));
 
-        this.p2State.x = this.cols - spawnXMargin - 20; // -20 to account for glyph width
+        this.p2State.x = this.cols - spawnXMargin - 20; 
         this.p2State.y = verticalMargin + (this.seededRandom() * (this.rows - (verticalMargin * 2)));
 
-        // 2. Randomize Velocities with a "Steer Toward Center" bias
         const baseSpeed = 0.4;
         const variance = 0.3;
 
-        // Player 1: Moving Right (positive vx)
         this.p1State.vx = baseSpeed + (this.seededRandom() * variance);
-        // Player 2: Moving Left (negative vx)
         this.p2State.vx = -(baseSpeed + (this.seededRandom() * variance));
 
-        // Vertical Velocity: Calculate vector toward each other's Y position
         const yDiff = this.p2State.y - this.p1State.y;
-        const steerStrength = 0.01; // Subtle nudge so they don't just fly off-screen immediately
+        const steerStrength = 0.01;
 
         this.p1State.vy = (yDiff * steerStrength) + (this.seededRandom() - 0.5) * variance;
         this.p2State.vy = (-yDiff * steerStrength) + (this.seededRandom() - 0.5) * variance;
@@ -351,7 +358,6 @@ class ArenaEngine {
     applyJitter() {
         const intensity = 0.26; 
         
-        // Use seededRandom() instead of Math.random()
         if (this.seededRandom() < 0.05) {
             this.p1State.vx += (this.seededRandom() - 0.5) * intensity;
             this.p1State.vy += (this.seededRandom() - 0.5) * intensity;
@@ -361,7 +367,6 @@ class ArenaEngine {
             this.p2State.vy += (this.seededRandom() - 0.5) * intensity;
         }
 
-        // Clamp logic remains the same
         const maxV = 0.8;
         this.p1State.vx = Math.max(-maxV, Math.min(maxV, this.p1State.vx));
         this.p1State.vy = Math.max(-maxV, Math.min(maxV, this.p1State.vy));
@@ -369,14 +374,12 @@ class ArenaEngine {
         this.p2State.vy = Math.max(-maxV, Math.min(maxV, this.p2State.vy));
     }
 
-    // This is called every frame to "Stamp" ("project") the current GOL state onto the arena
     stamp(glyphEngine, playerNum) {
         if (!glyphEngine.isActive) return;
         const state = (playerNum === 1) ? this.p1State : this.p2State;
         const glyphGrid = glyphEngine.grid;
         const n = glyphEngine.n;
 
-        // Roam: Update position
         state.x = (state.x + state.vx + this.cols) % this.cols;
         state.y = (state.y + state.vy + this.rows) % this.rows;
 
@@ -390,31 +393,26 @@ class ArenaEngine {
                     const chargePower = 0.1;
 
                     if (this.mode === 'combative') {
-                        // COMBATIVE LOGIC: 
-
                         const previousOwner = cell.owner;
 
-                        // Player 1 adds to the charge, Player 2 subtracts from it.
                         if (playerNum === 1) {
                             cell.charge += chargePower;
                         } else {
                             cell.charge -= chargePower;
                         }
 
-                        // Clamp the total charge between -1 and 1
                         cell.charge = Math.max(-1.0, Math.min(1.0, cell.charge));
 
-                        // Update ownership based on the sign of the charge
                         if (cell.charge > 0) {
                             cell.owner = 1;
                         } else if (cell.charge < 0) {
                             cell.owner = 2;
                         } else {
-                            cell.owner = 0; // Perfectly neutral
+                            cell.owner = 0;
                         }
 
                         if (previousOwner !== 0 && previousOwner !== cell.owner) {
-                            cell.justFlipped = 8; // Highlighting for 8 frames (~0.5 seconds)
+                            cell.justFlipped = 8;
                         }
 
                     } else {
@@ -426,7 +424,6 @@ class ArenaEngine {
                 }
             }
         }
-
     }
 
     calculateScore() {
@@ -436,114 +433,89 @@ class ArenaEngine {
         for (let y = 0; y < this.rows; y++) {
             for (let x = 0; x < this.cols; x++) {
                 const cell = this.grid[y][x];
-                // Rule: Charge must be >= 0.5 to count as a point
                 if (Math.abs(cell.charge) >= 0.5) {
                     if (cell.owner === 1) scoreP1++;
                     else if (cell.owner === 2) scoreP2++;
                 }
-                /* PENALTY CLAUSE FOR A GLYPH THAT LOST CELLS TO THE OPPONENT
-                if (cell.justFlipped > 0){
-                    if (cell.owner === 1) scoreP2 = parseInt(scoreP2 - 10);
-                    if (cell.owner === 2) scoreP1 = parseInt(scoreP1 - 10);
+                if (cell.justFlipped > 0) {
+                    if (cell.owner === 1) scoreP2 -= 10;
+                    if (cell.owner === 2) scoreP1 -= 10;
                 }
-                */
             }
         }
 
         return { p1: scoreP1, p2: scoreP2 };
     }
 
-    // arena cells lose their charge over time (currently not in use)
-    applyDecay() {
-        for (let y = 0; y < this.rows; y++) {
-            for (let x = 0; x < this.cols; x++) {
-                const cell = this.grid[y][x];
-                if (cell.charge > 0) {
-                    cell.charge -= 0.005; // Very slow fade
-                    if (cell.charge <= 0) {
-                        cell.charge = 0;
-                        cell.owner = 0;
-                    }
-                }
-            }
-        }
+    updateIndicatorBand(bandMesh, state) {
+        // If vx > 0 (moving right), leading edge is at state.x + 15
+        // If vx < 0 (moving left), leading edge is at state.x
+        const offset = state.vx >= 0 ? 15 : 0;
+        const centerColumn = state.x + offset;
+        
+        const u = (centerColumn / this.cols) * Math.PI * 2;
+
+        const posX = this.R * Math.cos(u);
+        const posY = this.R * Math.sin(u);
+
+        bandMesh.position.set(posX, posY, 0);
+        bandMesh.rotation.set(0, 0, 0);
+        bandMesh.rotation.z = u;
+        bandMesh.rotateY(Math.PI / 2);
     }
 
     render(color1, color2) {
-        // Convert hex string colors from your game state to Three.js color instances
         const threeColor1 = new THREE.Color(color1);
         const threeColor2 = new THREE.Color(color2);
 
+        // Update wireframe bands positioning & colors
+        this.p1BandMat.color.copy(threeColor1);
+        this.p2BandMat.color.copy(threeColor2);
+
+        this.updateIndicatorBand(this.p1IndicatorBand, this.p1State);
+        this.updateIndicatorBand(this.p2IndicatorBand, this.p2State);
+
+        // Render nodes (Only active / owned cells)
         for (let y = 0; y < this.rows; y++) {
             for (let x = 0; x < this.cols; x++) {
                 const cell = this.grid[y][x];
                 const mesh = this.meshGrid[y][x];
 
                 if (cell.owner !== 0) {
-                    // Map logical ownership and charge to 3D properties
                     mesh.material.color.copy((cell.owner === 1) ? threeColor1 : threeColor2);
                     mesh.material.opacity = Math.abs(cell.charge);
                     
                     if (cell.justFlipped > 0) {
-                        const flashIntensity = cell.justFlipped / 8; // Fades from 1.0 down to 0.0
-                        
-                        // OVERDRIVE: Multiply by 5 or 10 to push the brightness past standard white
+                        const flashIntensity = cell.justFlipped / 8;
                         const boost = flashIntensity * 5.0; 
                         mesh.material.emissive.setRGB(boost, boost, boost);
-                        
-                        // EXPLOSIVE SCALE: Make the scaling pop much more dramatic (e.g., double the size)
                         const scaleFactor = 1.0 + (flashIntensity * 1.5); 
                         mesh.scale.set(scaleFactor, scaleFactor, scaleFactor);
-                        
-                        cell.justFlipped--; //
+                        cell.justFlipped--; 
                     } else {
                         mesh.material.emissive.setRGB(0, 0, 0); 
                         mesh.scale.set(1, 1, 1);
                     }
-
                 } else {
-                    // Return to unowned baseline state
                     mesh.material.opacity = 0.0;
+                    mesh.material.emissive.setRGB(0, 0, 0);
                     mesh.scale.set(1, 1, 1);
                 }
             }
         }
 
-        // Spin the whole arena slightly over time to show off the 3D depth!
-        /*
         this.scene.rotation.y += 0.001;
-        const maxTiltRadians = (10 * Math.PI) / 180; // Converts 10° to radians (approx 0.174)
-        const tiltOscillation = Math.sin(this.iteration * 0.01) * maxTiltRadians;
-        this.scene.rotation.x = (Math.PI / 2) + tiltOscillation;
-        */
-
-        // 1. Keep your slow spin around the vertical axis
-        this.scene.rotation.y += 0.001;
-
-        // 2. Adjust base tilt: (Math.PI / 2) is 90 degrees flat. 
-        // Subtracting 0.5 radians (roughly 28 degrees) elevates the camera angle from above.
-        const baseTiltFromAbove = (Math.PI / 2) - 0.8;
-
-        const maxTiltRadians = (10 * Math.PI) / 180; // +/- 10 degrees oscillation range
-        const tiltOscillation = Math.sin(this.iteration * 0.01) * maxTiltRadians;
-
-        // 3. Set the final combined angle
-        //this.scene.rotation.x = baseTiltFromAbove + tiltOscillation;
-        this.scene.rotation.x = baseTiltFromAbove;
-        // this.scene.rotation.x += 0.001;
-
-        // Trigger WebGL execution pass
-        // this.renderer.render(this.scene, this.camera);
+        if (this.controls) {
+            this.controls.update();
+        }
         this.composer.render();
     }
 
     reset() {
-        // 1. Reset simulation values (Kept the same)
         for (let y = 0; y < this.rows; y++) {
             for (let x = 0; x < this.cols; x++) {
                 this.grid[y][x] = { charge: 0, owner: 0, justFlipped: 0 };
                 
-                // 2. Hide the corresponding 3D cell mesh instantly
                 if (this.meshGrid && this.meshGrid[y][x]) {
                     this.meshGrid[y][x].material.opacity = 0.0;
                     this.meshGrid[y][x].scale.set(1, 1, 1);
@@ -551,106 +523,85 @@ class ArenaEngine {
             }
         }
         this.iteration = 0;
-        
-        // Optional: Reset your camera rotation or position here if you want it to snap back
         this.scene.rotation.set(0, 0, 0);
     }
-
 }
 
 var sha256 = function sha256(ascii) {
-	function rightRotate(value, amount) {
-		return (value>>>amount) | (value<<(32 - amount));
-	};
-	
-	var mathPow = Math.pow;
-	var maxWord = mathPow(2, 32);
-	var lengthProperty = 'length'
-	var i, j; // Used as a counter across the whole file
-	var result = ''
+    function rightRotate(value, amount) {
+        return (value >>> amount) | (value << (32 - amount));
+    }
+    
+    var mathPow = Math.pow;
+    var maxWord = mathPow(2, 32);
+    var lengthProperty = 'length';
+    var i, j;
+    var result = '';
 
-	var words = [];
-	var asciiBitLength = ascii[lengthProperty]*8;
-	
-	//* caching results is optional - remove/add slash from front of this line to toggle
-	// Initial hash value: first 32 bits of the fractional parts of the square roots of the first 8 primes
-	// (we actually calculate the first 64, but extra values are just ignored)
-	var hash = sha256.h = sha256.h || [];
-	// Round constants: first 32 bits of the fractional parts of the cube roots of the first 64 primes
-	var k = sha256.k = sha256.k || [];
-	var primeCounter = k[lengthProperty];
-	/*/
-	var hash = [], k = [];
-	var primeCounter = 0;
-	//*/
+    var words = [];
+    var asciiBitLength = ascii[lengthProperty] * 8;
+    
+    var hash = sha256.h = sha256.h || [];
+    var k = sha256.k = sha256.k || [];
+    var primeCounter = k[lengthProperty];
 
-	var isComposite = {};
-	for (var candidate = 2; primeCounter < 64; candidate++) {
-		if (!isComposite[candidate]) {
-			for (i = 0; i < 313; i += candidate) {
-				isComposite[i] = candidate;
-			}
-			hash[primeCounter] = (mathPow(candidate, .5)*maxWord)|0;
-			k[primeCounter++] = (mathPow(candidate, 1/3)*maxWord)|0;
-		}
-	}
-	
-	ascii += '\x80' // Append Ƈ' bit (plus zero padding)
-	while (ascii[lengthProperty]%64 - 56) ascii += '\x00' // More zero padding
-	for (i = 0; i < ascii[lengthProperty]; i++) {
-		j = ascii.charCodeAt(i);
-		if (j>>8) return; // ASCII check: only accept characters in range 0-255
-		words[i>>2] |= j << ((3 - i)%4)*8;
-	}
-	words[words[lengthProperty]] = ((asciiBitLength/maxWord)|0);
-	words[words[lengthProperty]] = (asciiBitLength)
-	
-	// process each chunk
-	for (j = 0; j < words[lengthProperty];) {
-		var w = words.slice(j, j += 16); // The message is expanded into 64 words as part of the iteration
-		var oldHash = hash;
-		// This is now the undefinedworking hash", often labelled as variables a...g
-		// (we have to truncate as well, otherwise extra entries at the end accumulate
-		hash = hash.slice(0, 8);
-		
-		for (i = 0; i < 64; i++) {
-			var i2 = i + j;
-			// Expand the message into 64 words
-			// Used below if 
-			var w15 = w[i - 15], w2 = w[i - 2];
-
-			// Iterate
-			var a = hash[0], e = hash[4];
-			var temp1 = hash[7]
-				+ (rightRotate(e, 6) ^ rightRotate(e, 11) ^ rightRotate(e, 25)) // S1
-				+ ((e&hash[5])^((~e)&hash[6])) // ch
-				+ k[i]
-				// Expand the message schedule if needed
-				+ (w[i] = (i < 16) ? w[i] : (
-						w[i - 16]
-						+ (rightRotate(w15, 7) ^ rightRotate(w15, 18) ^ (w15>>>3)) // s0
-						+ w[i - 7]
-						+ (rightRotate(w2, 17) ^ rightRotate(w2, 19) ^ (w2>>>10)) // s1
-					)|0
-				);
-			// This is only used once, so *could* be moved below, but it only saves 4 bytes and makes things unreadble
-			var temp2 = (rightRotate(a, 2) ^ rightRotate(a, 13) ^ rightRotate(a, 22)) // S0
-				+ ((a&hash[1])^(a&hash[2])^(hash[1]&hash[2])); // maj
-			
-			hash = [(temp1 + temp2)|0].concat(hash); // We don't bother trimming off the extra ones, they're harmless as long as we're truncating when we do the slice()
-			hash[4] = (hash[4] + temp1)|0;
-		}
-		
-		for (i = 0; i < 8; i++) {
-			hash[i] = (hash[i] + oldHash[i])|0;
-		}
-	}
-	
-	for (i = 0; i < 8; i++) {
-		for (j = 3; j + 1; j--) {
-			var b = (hash[i]>>(j*8))&255;
-			result += ((b < 16) ? 0 : '') + b.toString(16);
-		}
-	}
-	return result;
+    var isComposite = {};
+    for (var candidate = 2; primeCounter < 64; candidate++) {
+        if (!isComposite[candidate]) {
+            for (i = 0; i < 313; i += candidate) {
+                isComposite[i] = candidate;
+            }
+            hash[primeCounter] = (mathPow(candidate, .5) * maxWord) | 0;
+            k[primeCounter++] = (mathPow(candidate, 1/3) * maxWord) | 0;
+        }
+    }
+    
+    ascii += '\x80';
+    while (ascii[lengthProperty] % 64 - 56) ascii += '\x00';
+    for (i = 0; i < ascii[lengthProperty]; i++) {
+        j = ascii.charCodeAt(i);
+        if (j >> 8) return;
+        words[i >> 2] |= j << ((3 - i) % 4) * 8;
+    }
+    words[words[lengthProperty]] = ((asciiBitLength / maxWord) | 0);
+    words[words[lengthProperty]] = (asciiBitLength);
+    
+    for (j = 0; j < words[lengthProperty];) {
+        var w = words.slice(j, j += 16);
+        var oldHash = hash;
+        hash = hash.slice(0, 8);
+        
+        for (i = 0; i < 64; i++) {
+            var w15 = w[i - 15], w2 = w[i - 2];
+            var a = hash[0], e = hash[4];
+            var temp1 = hash[7]
+                + (rightRotate(e, 6) ^ rightRotate(e, 11) ^ rightRotate(e, 25))
+                + ((e & hash[5]) ^ ((~e) & hash[6]))
+                + k[i]
+                + (w[i] = (i < 16) ? w[i] : (
+                        w[i - 16]
+                        + (rightRotate(w15, 7) ^ rightRotate(w15, 18) ^ (w15 >>> 3))
+                        + w[i - 7]
+                        + (rightRotate(w2, 17) ^ rightRotate(w2, 19) ^ (w2 >>> 10))
+                    ) | 0
+                );
+            var temp2 = (rightRotate(a, 2) ^ rightRotate(a, 13) ^ rightRotate(a, 22))
+                + ((a & hash[1]) ^ (a & hash[2]) ^ (hash[1] & hash[2]));
+            
+            hash = [(temp1 + temp2) | 0].concat(hash);
+            hash[4] = (hash[4] + temp1) | 0;
+        }
+        
+        for (i = 0; i < 8; i++) {
+            hash[i] = (hash[i] + oldHash[i]) | 0;
+        }
+    }
+    
+    for (i = 0; i < 8; i++) {
+        for (j = 3; j + 1; j--) {
+            var b = (hash[i] >> (j * 8)) & 255;
+            result += ((b < 16) ? 0 : '') + b.toString(16);
+        }
+    }
+    return result;
 };

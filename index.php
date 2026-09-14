@@ -111,7 +111,7 @@ $glyphs = $stmt->fetchAll();
             </div>
 
             <div class="arena-container">
-                <div id="canvasA" style="width: 100%; height: 550px; background-color:#000000; position: relative;"></div>
+                <div id="canvasA" style="width: 100%; background-color:#000000; position: relative;"></div>
                 <div class="analytics-tab">
                     <h3>LIVE PERFORMANCE (SCORE: THICK | DELTA: THIN)</h3>
                     <canvas id="unifiedChart" width="600" height="200"></canvas>
@@ -155,7 +155,7 @@ $glyphs = $stmt->fetchAll();
                 <canvas id="chargeHistogram2" class="cell-profile-container" style="height: 30px;"></canvas>
 
                 <div class="profile-label">LIVE RANKINGS</div>
-                <canvas id="tournamentLeaderboard" width="260" height="300" style="margin-top:10px;"></canvas>
+                <canvas id="tournamentLeaderboard" height="300" style="width: 100%; margin-top:10px;"></canvas>
 
             </div>
 
@@ -181,6 +181,7 @@ $glyphs = $stmt->fetchAll();
         window.RenderPass = RenderPass;
         window.UnrealBloomPass = UnrealBloomPass;
         window.OutputPass = OutputPass;
+        window.OrbitControls = OrbitControls;
 
         // Test to see if it works
         console.log("Three.js loaded successfully!", THREE.REVISION);
@@ -219,6 +220,77 @@ $glyphs = $stmt->fetchAll();
 
         let currentSeriesId = null;
         let currentGroup = null;
+
+        function checkURLParams(){
+            const urlParams = new URLSearchParams(window.location.search);
+
+            const rawSeriesId = urlParams.get('series_id');
+            const rawGroup    = urlParams.get('group');
+            const rawPhase    = urlParams.get('phase');
+
+            // 1. Check if all three parameters exist
+            if (!rawSeriesId || !rawGroup || !rawPhase) {
+                console.error("Missing required URL parameters. Requires: series_id, group, phase.");
+                return null;
+            }
+
+            // 2. Validate series_id (Must be a valid integer)
+            const seriesId = parseInt(rawSeriesId, 10);
+            if (isNaN(seriesId) || !Number.isInteger(Number(rawSeriesId))) {
+                console.error(`Invalid series_id: "${rawSeriesId}". Must be an integer.`);
+                return null;
+            }
+
+            // 3. Validate group (Allowed values: 'A', 'B', 'C', 'D', or 'f')
+            const validGroups = ['A', 'B', 'C', 'D', 'f'];
+            if (!validGroups.includes(rawGroup)) {
+                console.error(`Invalid group: "${rawGroup}". Allowed values are A, B, C, D, or f.`);
+                return null;
+            }
+
+            // 4. Validate phase (Allowed values: 1, 2, or 3)
+            const phase = parseInt(rawPhase, 10);
+            const validPhases = [1, 2, 3];
+            if (!validPhases.includes(phase)) {
+                console.error(`Invalid phase: "${rawPhase}". Allowed values are 1, 2, or 3.`);
+                return null;
+            }
+
+            // Return the sanitized and parsed values as an object
+            return {
+                seriesId: seriesId,
+                group: rawGroup,
+                phase: phase
+            };
+        }
+
+        function handlePhaseAndGroupExecution(params) {
+            const { seriesId, group, phase } = params;
+
+            // Phase-specific configuration mapping
+            const phaseConfigs = {
+                1: { rounds: 2, type: "round-robin", validGroups: ['A', 'B', 'C', 'D'] },
+                2: { rounds: 4, type: "knock-out",   validGroups: ['A', 'B', 'C', 'D'] },
+                3: { rounds: 4, type: "knock-out",   validGroups: ['f'] }
+            };
+
+            const config = phaseConfigs[phase];
+            if (!config) {
+                console.warn(`Unhandled phase "${phase}".`);
+                return;
+            }
+
+            // Check if the group is valid for the given phase
+            if (!config.validGroups.includes(group)) {
+                console.warn(`Invalid group "${group}" for Phase ${phase}. Expected: [${config.validGroups.join(', ')}]`);
+                return;
+            }
+
+            // Execute setup
+            totalRounds = config.rounds;
+            console.log(`Executing Phase ${phase} - Group ${group} logic for Series ${seriesId}`);
+            initSeriesTourney(seriesId, config.type, phase, group);
+        }
         
         const GlyphRegistry = [
             <?php foreach ($glyphs as $glyph): ?>
@@ -238,10 +310,32 @@ $glyphs = $stmt->fetchAll();
         ];
 
         window.onload = function() {
+
             initializeUnits(16); // Initialize with a default 16x16 grid
+            
             document.getElementById('canvasA').addEventListener('click', () => {
                 if (!duelInterval) { openUnifiedConfig(); }
             });
+
+            const params = checkURLParams();
+
+            if (!params) {
+                console.warn("System engagement halted: Required URL parameters missing or invalid.");
+                const statusElem = document.getElementById('gamestatus');
+                if (statusElem) {
+                    statusElem.innerText = "ERROR: INVALID OR MISSING URL PARAMETERS (series_id, group, phase)";
+                    statusElem.style.color = "#ff0000";
+                }
+                return;
+            }
+
+            // Save global state
+            currentSeriesId = params.seriesId;
+            currentGroup    = params.group;
+            window.currentPhase = params.phase;
+            
+            handlePhaseAndGroupExecution(params);
+            
         };
 
         function initializeUnits(n) {
