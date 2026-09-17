@@ -142,6 +142,8 @@ class Match{
                     arena.stamp(unit1, 1);
                     arena.stamp(unit2, 2);
 
+                    arena.applyChargeDecay(unit1.iteration, unit2.iteration);
+
                     // 3. Render the individual Glyphs
                     unit1.render();
                     unit2.render();

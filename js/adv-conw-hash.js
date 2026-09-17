@@ -10,6 +10,7 @@ class LifeEngine {
         this.n = gridSize;
         this.grid = this.createGrid();
         this.iteration = 0;
+        this.generations = 0;
 
         this.originHash = "";
         this.currentHash = "";
@@ -265,7 +266,8 @@ class ArenaEngine {
             Array.from({ length: this.cols }, () => ({ 
                 charge: 0, 
                 owner: 0, 
-                justFlipped: 0 
+                justFlipped: 0,
+                chargedAtIter: -1 
             }))
         );
 
@@ -278,6 +280,9 @@ class ArenaEngine {
         this.iteration = 0;
         this.seed = 0;
         this.mode = 'combative';
+
+        // DECAY FUNCTION
+        this.decayEnabled = true;
     }
 
     onWindowResize() {
@@ -394,6 +399,7 @@ class ArenaEngine {
 
                     if (this.mode === 'combative') {
                         const previousOwner = cell.owner;
+                        const previousCharge = cell.charge;
 
                         if (playerNum === 1) {
                             cell.charge += chargePower;
@@ -411,6 +417,11 @@ class ArenaEngine {
                             cell.owner = 0;
                         }
 
+                        if (cell.charge !== previousCharge) {
+                            if (playerNum === 1){ cell.chargedAtIter = unit1.iteration; }
+                            if (playerNum === 2){ cell.chargedAtIter = unit2.iteration; }
+                        }
+
                         if (previousOwner !== 0 && previousOwner !== cell.owner) {
                             cell.justFlipped = 8;
                         }
@@ -421,6 +432,49 @@ class ArenaEngine {
                             cell.charge = Math.min(1.0, cell.charge + chargePower);
                         }
                     }
+                }
+            }
+        }
+    }
+
+    applyChargeDecay(p1Generations, p2Generations) {
+        if (!this.decayEnabled) return;
+
+        for (let y = 0; y < this.rows; y++) {
+            for (let x = 0; x < this.cols; x++) {
+                const cell = this.grid[y][x];
+
+                // Only decay active charges
+                if (cell.charge === 0 || cell.owner === 0 || cell.chargedAtIter < 0) continue;
+
+                const ownerGens = (cell.owner === 1) ? p1Generations : p2Generations;
+                const chargedIter = cell.chargedAtIter;
+
+                // Get offset within the current 100-generation weight class (0–99)
+                const classOffset = ownerGens % 100;
+
+                let decayProbability = 0;
+
+                // Tier 1: Generations 0–24 in weight class -> decay charges from iterations 0–24
+                if (classOffset >= 0 && classOffset <= 24 && chargedIter >= 0 && chargedIter <= 24) {
+                    decayProbability = 0.2; // Adjust if you meant 0.4 based on comment
+                }
+                // Tier 2: Generations 25–49 in weight class -> decay charges from iterations 25–49
+                if (classOffset >= 25 && classOffset <= 49 && chargedIter >= 25 && chargedIter <= 49) {
+                    decayProbability = 0.4;
+                }
+                // Tier 3: Generations 50–74 in weight class -> decay charges from iterations 50–74
+                if (classOffset >= 50 && classOffset <= 74 && chargedIter >= 50 && chargedIter <= 74) {
+                    decayProbability = 0.6;
+                }
+                // Tier 4: Generations 75–99 in weight class -> decay charges from iterations 75–99
+                if (classOffset >= 75 && classOffset <= 99 && chargedIter >= 75 && chargedIter <= 99) {
+                    decayProbability = 0.8;
+                }
+
+                // Apply decay based on probability per iteration
+                if (decayProbability > 0 && this.seededRandom() < decayProbability) {
+                    cell.charge = 0;
                 }
             }
         }
@@ -444,7 +498,10 @@ class ArenaEngine {
             }
         }
 
-        return { p1: scoreP1, p2: scoreP2 };
+        return { 
+            p1: Math.max(0, scoreP1), 
+            p2: Math.max(0, scoreP2) 
+        };
     }
 
     updateIndicatorBand(bandMesh, state) {
