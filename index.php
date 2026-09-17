@@ -2,7 +2,7 @@
 include_once __DIR__ . '/../../priv/db_conf_laniakea.php';
 
 // Fetch all available Conway Glyphs from the database
-$stmt = $pdo->query("SELECT BATTLE_NAME, BIN, ITERATIONS as GENERATIONS, PEAK, MAX, MIN, HASH, TERMINAL, OWNER FROM GLYPHREG ORDER BY BATTLE_NAME ASC");
+$stmt = $pdo->query("SELECT BATTLE_NAME, BIN, ITERATIONS as GENERATIONS, PEAK, MAX, MIN, HASH, TERMINAL, OWNER, MODE FROM GLYPHREG WHERE HASHWAR='1' ORDER BY BATTLE_NAME ASC");
 $glyphs = $stmt->fetchAll();
 ?>
 <!DOCTYPE html>
@@ -86,6 +86,7 @@ $glyphs = $stmt->fetchAll();
                         <div class="stat-item">PEAK <span id="spec-peak1">0</span></div>
                         <div class="stat-item">MAX <span id="spec-max1">0</span></div>
                         <div class="stat-item">MIN <span id="spec-min1">0</span></div>
+                        <div class="stat-item">MODE <span id="spec-mode1">-</span></div>
                         <div class="stat-item"><span id="log1" style="color:#ff0000;"></span></div>
                     </div>
 
@@ -136,6 +137,7 @@ $glyphs = $stmt->fetchAll();
                         <div class="stat-item">PEAK <span id="spec-peak2">0</span></div>
                         <div class="stat-item">MAX <span id="spec-max2">0</span></div>
                         <div class="stat-item">MIN <span id="spec-min2">0</span></div>
+                        <div class="stat-item">MODE <span id="spec-mode2">-</span></div>
                         <div class="stat-item"><span id="log2" style="color:#ff0000;"></span></div>
                     </div>
                 </div>
@@ -301,6 +303,7 @@ $glyphs = $stmt->fetchAll();
                 peak: parseInt("<?php echo $glyph['PEAK']; ?>") || 0,
                 min: parseInt("<?php echo $glyph['MIN']; ?>") || 0,
                 max: parseInt("<?php echo $glyph['MAX']; ?>") || 0,
+                mode: "<?php echo addslashes($glyph['MODE']); ?>",
                 originHash: "<?php echo addslashes($glyph['HASH']); ?>",
                 terminal: "<?php echo addslashes($glyph['TERMINAL']); ?>",
                 owner: "<?php echo addslashes($glyph['OWNER']); ?>",

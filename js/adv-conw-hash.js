@@ -447,28 +447,35 @@ class ArenaEngine {
                 // Only decay active charges
                 if (cell.charge === 0 || cell.owner === 0 || cell.chargedAtIter < 0) continue;
 
-                const ownerGens = (cell.owner === 1) ? p1Generations : p2Generations;
-                const chargedIter = cell.chargedAtIter;
+                const currentGens = (cell.owner === 1) ? p1Generations : p2Generations;
+                const maxGens = (cell.owner === 1) ? unit1.iteration : unit2.iteration;
 
-                // Get offset within the current 100-generation weight class (0–99)
-                const classOffset = ownerGens % 100;
+                // Decay triggers during the final 100 generations of the Glyph's lifespan
+                const decayStartGen = maxGens - 100;
+
+                // Skip decay if the Glyph hasn't reached its final 100 generations yet
+                if (currentGens < decayStartGen) continue;
+
+                // Offset within the final 100 generations (0–99)
+                const decayOffset = currentGens - decayStartGen;
+                const chargedIter = cell.chargedAtIter;
 
                 let decayProbability = 0;
 
-                // Tier 1: Generations 0–24 in weight class -> decay charges from iterations 0–24
-                if (classOffset >= 0 && classOffset <= 24 && chargedIter >= 0 && chargedIter <= 24) {
-                    decayProbability = 0.2; // Adjust if you meant 0.4 based on comment
+                // Tier 1: Charges from iter 0–24 decay during 1st quarter of final phase
+                if (chargedIter >= 0 && chargedIter <= 24 && decayOffset >= 0 && decayOffset <= 24) {
+                    decayProbability = 0.2;
                 }
-                // Tier 2: Generations 25–49 in weight class -> decay charges from iterations 25–49
-                if (classOffset >= 25 && classOffset <= 49 && chargedIter >= 25 && chargedIter <= 49) {
+                // Tier 2: Charges from iter 25–49 decay during 2nd quarter
+                if (chargedIter >= 25 && chargedIter <= 49 && decayOffset >= 25 && decayOffset <= 49) {
                     decayProbability = 0.4;
                 }
-                // Tier 3: Generations 50–74 in weight class -> decay charges from iterations 50–74
-                if (classOffset >= 50 && classOffset <= 74 && chargedIter >= 50 && chargedIter <= 74) {
+                // Tier 3: Charges from iter 50–74 decay during 3rd quarter
+                if (chargedIter >= 50 && chargedIter <= 74 && decayOffset >= 50 && decayOffset <= 74) {
                     decayProbability = 0.6;
                 }
-                // Tier 4: Generations 75–99 in weight class -> decay charges from iterations 75–99
-                if (classOffset >= 75 && classOffset <= 99 && chargedIter >= 75 && chargedIter <= 99) {
+                // Tier 4: Charges from iter 75–99 decay during 4th quarter
+                if (chargedIter >= 75 && chargedIter <= 99 && decayOffset >= 75 && decayOffset <= 99) {
                     decayProbability = 0.8;
                 }
 

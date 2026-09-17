@@ -207,6 +207,7 @@ class Match{
         document.getElementById("spec-peak1").innerText = this.glyphA.peak;
         document.getElementById("spec-max1").innerText = this.glyphA.max;
         document.getElementById("spec-min1").innerText = this.glyphA.min;
+        document.getElementById("spec-mode1").innerText = this.glyphA.mode;
         document.getElementById("originHash1").innerText = "0x" + this.glyphA.originHash.substring(0, 16) + "...";
 
         document.getElementById("name2").innerText = this.glyphB.name;
@@ -215,6 +216,7 @@ class Match{
         document.getElementById("spec-peak2").innerText = this.glyphB.peak;
         document.getElementById("spec-max2").innerText = this.glyphB.max;
         document.getElementById("spec-min2").innerText = this.glyphB.min;
+        document.getElementById("spec-mode2").innerText = this.glyphB.mode;
         document.getElementById("originHash2").innerText = "0x" + this.glyphB.originHash.substring(0, 16) + "...";
 
     }
