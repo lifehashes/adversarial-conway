@@ -53,8 +53,7 @@ class Match{
                 if (this.externalSeed != null){ 
                     this.repeatValue = this.externalSeed; // if an external seed (e.g. from NIST) is provided, overwrite the local seed
                     console.log("[matches.js] Match{}.run(): No external seed provided, using local RNG " + this.repeatValue); 
-                }
-                
+                }                
                 
                 arena.setSeed(this.repeatValue);
                 document.getElementById("round-seed").innerText = this.repeatValue;
@@ -64,6 +63,9 @@ class Match{
 
                 document.getElementById("iteration1").style.color = "#ffffff";
                 document.getElementById("iteration2").style.color = "#ffffff";
+
+                document.getElementById(`spec-shield1`).innerText = "100%";
+                document.getElementById(`spec-shield2`).innerText = "100%";
 
                 //  Estimate spatial and temporal envelope of the match to initialize analytics
                 maxMatchLength = Math.max(this.glyphA.gen, this.glyphB.gen);
@@ -142,6 +144,7 @@ class Match{
                     arena.stamp(unit1, 1);
                     arena.stamp(unit2, 2);
 
+                    arena.checkIntrusion(unit1, unit2);
                     arena.applyChargeDecay(unit1.iteration, unit2.iteration);
 
                     // 3. Render the individual Glyphs
@@ -205,6 +208,7 @@ class Match{
         document.getElementById("owner1").innerText = this.glyphA.owner;
         document.getElementById("spec-gen1").innerText = this.glyphA.gen;
         document.getElementById("spec-peak1").innerText = this.glyphA.peak;
+        document.getElementById("spec-shield1").innerText = "100%";
         document.getElementById("spec-max1").innerText = this.glyphA.max;
         document.getElementById("spec-min1").innerText = this.glyphA.min;
         document.getElementById("spec-mode1").innerText = this.glyphA.mode;
@@ -214,6 +218,7 @@ class Match{
         document.getElementById("owner2").innerText = this.glyphB.owner;
         document.getElementById("spec-gen2").innerText = this.glyphB.gen;
         document.getElementById("spec-peak2").innerText = this.glyphB.peak;
+        document.getElementById("spec-shield2").innerText = "100%";
         document.getElementById("spec-max2").innerText = this.glyphB.max;
         document.getElementById("spec-min2").innerText = this.glyphB.min;
         document.getElementById("spec-mode2").innerText = this.glyphB.mode;
@@ -229,6 +234,11 @@ class Match{
         document.getElementById('log1').innerText = unit1.containment ? "" : "!!CONT.FAIL!!";
         document.getElementById('log2').innerText = unit2.containment ? "" : "!!CONT.FAIL!!";
 
+        // If intrusion is true, 'failure' class is added, if not, it is removed
+        document.getElementById('canvas1').classList.toggle('failure', unit1.intrusion); 
+        document.getElementById('canvas2').classList.toggle('failure', unit2.intrusion);
+        document.getElementById('log1').innerText = !unit1.intrusion ? "" : "!!INTRUSION!!";
+        document.getElementById('log2').innerText = !unit2.intrusion ? "" : "!!INTRUSION!!";
 
         document.getElementById('iteration1').innerText = unit1.iteration;
         document.getElementById('currentHash1').innerText = "0x" + unit1.currentHash.substring(0, 16) + "...";

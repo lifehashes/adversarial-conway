@@ -22,6 +22,7 @@ class LifeEngine {
 
         this.originBinary = null;
         this.containment = true;
+        this.intrusion = false;
     }
 
     getBinaryString() {
@@ -161,6 +162,7 @@ class LifeEngine {
         this.history.clear();
         this.isActive = true;
         this.containment = true;
+        this.intrusion = false;
         
         // Safe check to avoid 'Cannot read properties of null (reading length)'
         if (this.originBinary) {
@@ -274,8 +276,8 @@ class ArenaEngine {
         this.meshGrid = this.create3DGridElements();
         
         // Glyph Kinematics
-        this.p1State = { x: 0, y: 0, vx: 0, vy: 0 };
-        this.p2State = { x: 0, y: 0, vx: 0, vy: 0 };
+        this.p1State = { x: 0, y: 0, vx: 0, vy: 0, stance: 'NONE', shield: 0 };
+        this.p2State = { x: 0, y: 0, vx: 0, vy: 0, stance: 'NONE', shield: 0 };
         
         this.iteration = 0;
         this.seed = 0;
@@ -343,9 +345,13 @@ class ArenaEngine {
         
         this.p1State.x = spawnXMargin;
         this.p1State.y = verticalMargin + (this.seededRandom() * (this.rows - (verticalMargin * 2)));
+        this.p1State.stance = document.getElementById("spec-mode1").innerText;
+        this.p1State.shield = parseInt(document.getElementById("spec-peak1").innerText);
 
         this.p2State.x = this.cols - spawnXMargin - 20; 
         this.p2State.y = verticalMargin + (this.seededRandom() * (this.rows - (verticalMargin * 2)));
+        this.p2State.stance = document.getElementById("spec-mode2").innerText;
+        this.p2State.shield = parseInt(document.getElementById("spec-peak2").innerText);
 
         const baseSpeed = 0.4;
         const variance = 0.3;
@@ -382,6 +388,7 @@ class ArenaEngine {
     stamp(glyphEngine, playerNum) {
         if (!glyphEngine.isActive) return;
         const state = (playerNum === 1) ? this.p1State : this.p2State;
+        const opponentNum = (playerNum === 1) ? 2 : 1;
         const glyphGrid = glyphEngine.grid;
         const n = glyphEngine.n;
 
@@ -395,7 +402,19 @@ class ArenaEngine {
                     const ay = ((Math.floor(state.y + gy) % this.rows) + this.rows) % this.rows;
                     const cell = this.grid[ay][ax];
 
-                    const chargePower = 0.1;
+                    // DEFENSIVE restriction: cannot affect opponent cells
+                    if (state.stance === 'DEFENSIVE' && cell.owner === opponentNum) {
+                        continue;
+                    }
+
+                    // Determine charge power based on stance and cell state
+                    let chargePower = 0.1;
+
+                    if (cell.owner === 0 && state.stance === 'DEFENSIVE') {
+                        chargePower = 0.2; // +100% on neutral cells
+                    } else if (cell.owner === opponentNum && state.stance === 'BALANCED') {
+                        chargePower = 0.13; // +30% on opponent cells
+                    }
 
                     if (this.mode === 'combative') {
                         const previousOwner = cell.owner;
@@ -418,20 +437,67 @@ class ArenaEngine {
                         }
 
                         if (cell.charge !== previousCharge) {
-                            if (playerNum === 1){ cell.chargedAtIter = unit1.iteration; }
-                            if (playerNum === 2){ cell.chargedAtIter = unit2.iteration; }
+                            cell.chargedAtIter = (playerNum === 1) ? unit1.iteration : unit2.iteration;
                         }
 
                         if (previousOwner !== 0 && previousOwner !== cell.owner) {
                             cell.justFlipped = 8;
                         }
-
-                    } else {
-                        if (cell.owner === 0 || cell.owner === playerNum) {
-                            cell.owner = playerNum;
-                            cell.charge = Math.min(1.0, cell.charge + chargePower);
-                        }
                     }
+                }
+            }
+        }
+    }
+
+    checkIntrusion(p1Engine, p2Engine) {
+        const p1 = this.p1State;
+        const p2 = this.p2State;
+
+        const peak1 = parseInt(document.getElementById("spec-peak1").innerText);
+        const peak2 = parseInt(document.getElementById("spec-peak2").innerText);
+
+        const p1Width = p1Engine.n, p1Height = p1Engine.n;
+        const p2Width = p2Engine.n, p2Height = p2Engine.n;
+
+        const dx = Math.abs((p1.x + p1Width / 2) - (p2.x + p2Width / 2));
+        const dy = Math.abs((p1.y + p1Height / 2) - (p2.y + p2Height / 2));
+
+        const overlapX = Math.max(0, (p1Width / 2 + p2Width / 2) - dx);
+        const overlapY = Math.max(0, (p1Height / 2 + p2Height / 2) - dy);
+
+        const overlappingCells = Math.floor(overlapX) * Math.floor(overlapY);
+
+        if (overlappingCells > 0) {
+
+            // console.log(`Overlap detected! P1: ${p1.shield}/${peak1}, P2: ${p2.shield}/${peak2}`);
+            document.getElementById("spec-shield1").innerText = parseInt(p1.shield/peak1*100) + "%";
+            document.getElementById("spec-shield2").innerText = parseInt(p2.shield/peak2*100) + "%";
+
+            // Player 1 attacks Player 2
+            if (p1.stance === 'OFFENSIVE' && p2Engine.isActive) {
+                // Apply 50% damage reduction if target is in DEFENSIVE stance
+                const damageMultiplier = (p2.stance === 'DEFENSIVE') ? 0.02 : 0.5;
+                p2.shield -= overlappingCells * damageMultiplier;
+
+                if (p2.shield <= 0) {
+                    p2.shield = 0;
+                    p2Engine.grid = p2Engine.createGrid();
+                    p2Engine.isActive = false;
+                    p2Engine.intrusion = true;                    
+                }
+            }
+
+            // Player 2 attacks Player 1
+            if (p2.stance === 'OFFENSIVE' && p1Engine.isActive) {
+                // Damage reduction depends on stance
+                const damageMultiplier = (p1.stance === 'DEFENSIVE') ? 0.02 : 0.05;
+                p1.shield -= overlappingCells * damageMultiplier;
+
+                if (p1.shield <= 0) {
+                    p1.shield = 0;
+                    p1Engine.grid = p1Engine.createGrid();
+                    p1Engine.isActive = false;
+                    p1Engine.intrusion = true;
                 }
             }
         }

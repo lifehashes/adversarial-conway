@@ -86,7 +86,8 @@ $glyphs = $stmt->fetchAll();
                         <div class="stat-item">PEAK <span id="spec-peak1">0</span></div>
                         <div class="stat-item">MAX <span id="spec-max1">0</span></div>
                         <div class="stat-item">MIN <span id="spec-min1">0</span></div>
-                        <div class="stat-item">MODE <span id="spec-mode1">-</span></div>
+                        <div class="stat-item"><span id="spec-mode1">-</span></div>
+                        <div class="stat-item">SHIELD <span id="spec-shield1">-</span></div>
                         <div class="stat-item"><span id="log1" style="color:#ff0000;"></span></div>
                     </div>
 
@@ -137,7 +138,8 @@ $glyphs = $stmt->fetchAll();
                         <div class="stat-item">PEAK <span id="spec-peak2">0</span></div>
                         <div class="stat-item">MAX <span id="spec-max2">0</span></div>
                         <div class="stat-item">MIN <span id="spec-min2">0</span></div>
-                        <div class="stat-item">MODE <span id="spec-mode2">-</span></div>
+                        <div class="stat-item"><span id="spec-mode2">-</span></div>
+                        <div class="stat-item">SHIELD <span id="spec-shield2">-</span></div>
                         <div class="stat-item"><span id="log2" style="color:#ff0000;"></span></div>
                     </div>
                 </div>
