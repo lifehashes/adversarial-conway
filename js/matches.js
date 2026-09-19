@@ -228,18 +228,29 @@ class Match{
 
     updateUI(){
 
-        // If containment is false, 'failure' class is added. If true, it's removed.
-        document.getElementById('canvas1').classList.toggle('failure', !unit1.containment); 
-        document.getElementById('canvas2').classList.toggle('failure', !unit2.containment);
-        document.getElementById('log1').innerText = unit1.containment ? "" : "!!CONT.FAIL!!";
-        document.getElementById('log2').innerText = unit2.containment ? "" : "!!CONT.FAIL!!";
+        // Apply 'failure' CSS class if either containment fails OR intrusion occurs
+        document.getElementById('canvas1').classList.toggle('failure', !unit1.containment || unit1.intrusion); 
+        document.getElementById('canvas2').classList.toggle('failure', !unit2.containment || unit2.intrusion);
 
-        // If intrusion is true, 'failure' class is added, if not, it is removed
-        document.getElementById('canvas1').classList.toggle('failure', unit1.intrusion); 
-        document.getElementById('canvas2').classList.toggle('failure', unit2.intrusion);
-        document.getElementById('log1').innerText = !unit1.intrusion ? "" : "!!INTRUSION!!";
-        document.getElementById('log2').innerText = !unit2.intrusion ? "" : "!!INTRUSION!!";
+        // Determine status log message for Player 1
+        let logMessage1 = "";
+        if (unit1.intrusion) {
+            logMessage1 = "!!INTRUSION!!";
+        } else if (!unit1.containment) {
+            logMessage1 = "!!CONT.FAIL!!";
+        }
+        document.getElementById('log1').innerText = logMessage1;
 
+        // Determine status log message for Player 2
+        let logMessage2 = "";
+        if (unit2.intrusion) {
+            logMessage2 = "!!INTRUSION!!";
+        } else if (!unit2.containment) {
+            logMessage2 = "!!CONT.FAIL!!";
+        }
+        document.getElementById('log2').innerText = logMessage2;
+
+        // Remaining iteration, hash, and status UI updates
         document.getElementById('iteration1').innerText = unit1.iteration;
         document.getElementById('currentHash1').innerText = "0x" + unit1.currentHash.substring(0, 16) + "...";
 
