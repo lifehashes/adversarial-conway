@@ -11,7 +11,7 @@ class Match{
 
         this.frameDelay = frameDelay;
 
-        this.algorithm = "Adversarial Conway";
+        this.algorithm = "Adversarial Conway 2.0";
         this.mode = "Combative"
 
         this.tournamentId = tournamentId;

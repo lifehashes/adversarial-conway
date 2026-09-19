@@ -468,31 +468,36 @@ class ArenaEngine {
         const overlappingCells = Math.floor(overlapX) * Math.floor(overlapY);
 
         if (overlappingCells > 0) {
+            document.getElementById("spec-shield1").innerText = parseInt(p1.shield / peak1 * 100) + "%";
+            document.getElementById("spec-shield2").innerText = parseInt(p2.shield / peak2 * 100) + "%";
 
-            // console.log(`Overlap detected! P1: ${p1.shield}/${peak1}, P2: ${p2.shield}/${peak2}`);
-            document.getElementById("spec-shield1").innerText = parseInt(p1.shield/peak1*100) + "%";
-            document.getElementById("spec-shield2").innerText = parseInt(p2.shield/peak2*100) + "%";
+            // Calculate pending damage first to eliminate execution order bias
+            let p1Damage = 0;
+            let p2Damage = 0;
 
-            // Player 1 attacks Player 2
             if (p1.stance === 'OFFENSIVE' && p2Engine.isActive) {
-                // Apply 50% damage reduction if target is in DEFENSIVE stance
-                const damageMultiplier = (p2.stance === 'DEFENSIVE') ? 0.02 : 0.5;
-                p2.shield -= overlappingCells * damageMultiplier;
+                const mult = (p2.stance === 'DEFENSIVE') ? 0.02 : 0.25;
+                p2Damage = overlappingCells * mult;
+            }
 
+            if (p2.stance === 'OFFENSIVE' && p1Engine.isActive) {
+                const mult = (p1.stance === 'DEFENSIVE') ? 0.02 : 0.25;
+                p1Damage = overlappingCells * mult;
+            }
+
+            // Apply damage simultaneously
+            if (p2Damage > 0) {
+                p2.shield -= p2Damage;
                 if (p2.shield <= 0) {
                     p2.shield = 0;
                     p2Engine.grid = p2Engine.createGrid();
                     p2Engine.isActive = false;
-                    p2Engine.intrusion = true;                    
+                    p2Engine.intrusion = true;
                 }
             }
 
-            // Player 2 attacks Player 1
-            if (p2.stance === 'OFFENSIVE' && p1Engine.isActive) {
-                // Damage reduction depends on stance
-                const damageMultiplier = (p1.stance === 'DEFENSIVE') ? 0.02 : 0.05;
-                p1.shield -= overlappingCells * damageMultiplier;
-
+            if (p1Damage > 0) {
+                p1.shield -= p1Damage;
                 if (p1.shield <= 0) {
                     p1.shield = 0;
                     p1Engine.grid = p1Engine.createGrid();
