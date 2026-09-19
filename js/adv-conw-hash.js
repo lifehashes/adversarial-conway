@@ -476,12 +476,12 @@ class ArenaEngine {
             let p2Damage = 0;
 
             if (p1.stance === 'OFFENSIVE' && p2Engine.isActive) {
-                const mult = (p2.stance === 'DEFENSIVE') ? 0.02 : 0.25;
+                const mult = (p2.stance === 'DEFENSIVE') ? 0.02 : 0.1;
                 p2Damage = overlappingCells * mult;
             }
 
             if (p2.stance === 'OFFENSIVE' && p1Engine.isActive) {
-                const mult = (p1.stance === 'DEFENSIVE') ? 0.02 : 0.25;
+                const mult = (p1.stance === 'DEFENSIVE') ? 0.02 : 0.1;
                 p1Damage = overlappingCells * mult;
             }
 
