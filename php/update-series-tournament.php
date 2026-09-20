@@ -10,10 +10,15 @@ if (!isset($data['tournament_id'], $data['series_id'], $data['group_label'])) {
 }
 
 try {
-    // Update the dummy 0 entries to the new real tournament ID
-    $stmt = $pdo->prepare("UPDATE series_participants 
-                           SET tournament_id = ? 
-                           WHERE series_id = ? AND group_label = ? AND tournament_id = 0");
+    // Update tournament_id and sync MODE from GLYPHREG where glyph_name matches BATTLE_NAME
+    $stmt = $pdo->prepare("UPDATE series_participants sp
+                           LEFT JOIN GLYPHREG g ON sp.glyph_name = g.BATTLE_NAME
+                           SET sp.tournament_id = ?,
+                               sp.MODE = g.MODE
+                           WHERE sp.series_id = ? 
+                             AND sp.group_label = ? 
+                             AND sp.tournament_id = 0");
+                             
     $stmt->execute([$data['tournament_id'], $data['series_id'], $data['group_label']]);
     
     echo json_encode(['success' => true]);
