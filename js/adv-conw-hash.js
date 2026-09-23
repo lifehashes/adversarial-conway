@@ -459,8 +459,13 @@ class ArenaEngine {
         const p1Width = p1Engine.n, p1Height = p1Engine.n;
         const p2Width = p2Engine.n, p2Height = p2Engine.n;
 
-        const dx = Math.abs((p1.x + p1Width / 2) - (p2.x + p2Width / 2));
-        const dy = Math.abs((p1.y + p1Height / 2) - (p2.y + p2Height / 2));
+        let dx = Math.abs((p1.x + p1Width / 2) - (p2.x + p2Width / 2));
+        let dy = Math.abs((p1.y + p1Height / 2) - (p2.y + p2Height / 2));
+
+        // Bcs the arena is a torus two Glyphs at either
+        // side of the seam are next to each other: measure the short way round
+        dx = Math.min(dx, this.cols - dx);
+        dy = Math.min(dy, this.rows - dy);
 
         const overlapX = Math.max(0, (p1Width / 2 + p2Width / 2) - dx);
         const overlapY = Math.max(0, (p1Height / 2 + p2Height / 2) - dy);
