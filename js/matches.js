@@ -145,7 +145,7 @@ class Match{
                     arena.stamp(unit2, 2);
 
                     arena.checkIntrusion(unit1, unit2);
-                    arena.applyChargeDecay(unit1.iteration, unit2.iteration);
+                    arena.applyChargeDecay(unit1.iteration, unit2.iteration, this.glyphA.gen, this.glyphB.gen);
 
                     // 3. Render the individual Glyphs
                     unit1.render();
