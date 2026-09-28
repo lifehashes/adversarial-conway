@@ -508,7 +508,7 @@ class ArenaEngine {
         }
     }
 
-    applyChargeDecay(p1Generations, p2Generations) {
+    applyChargeDecay(p1Generations, p2Generations, p1Lifespan, p2Lifespan) {
         if (!this.decayEnabled) return;
 
         for (let y = 0; y < this.rows; y++) {
@@ -519,7 +519,7 @@ class ArenaEngine {
                 if (cell.charge === 0 || cell.owner === 0 || cell.chargedAtIter < 0) continue;
 
                 const currentGens = (cell.owner === 1) ? p1Generations : p2Generations;
-                const maxGens = (cell.owner === 1) ? unit1.iteration : unit2.iteration;
+                const maxGens = (cell.owner === 1) ? p1Lifespan : p2Lifespan;
 
                 // Decay triggers during the final 100 generations of the Glyph's lifespan
                 const decayStartGen = maxGens - 100;
