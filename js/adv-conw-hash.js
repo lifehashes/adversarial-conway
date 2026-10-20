@@ -23,6 +23,9 @@ class LifeEngine {
         this.originBinary = null;
         this.containment = true;
         this.intrusion = false;
+
+        // tracks how many times a cell has been alive consecutively
+        this.consecutiveAlive = this.createGrid(); 
     }
 
     getBinaryString() {
@@ -34,11 +37,22 @@ class LifeEngine {
     }
 
     loadFromBinary(binaryString) {
+
+        // Reset and clear both the grid and the consecutive tracker
+        this.grid = this.createGrid();
+        this.consecutiveAlive = this.createGrid();
+
         for (let i = 0; i < binaryString.length; i++) {
             const x = i % this.n;
             const y = Math.floor(i / this.n);
             if (y < this.n) {
-                this.grid[y][x] = parseInt(binaryString[i]);
+                const val = parseInt(binaryString[i]);
+                this.grid[y][x] = val;
+                
+                // Initialize live cells at load time with a count of 1
+                if (val === 1) {
+                    this.consecutiveAlive[y][x] = 1;
+                }
             }
         }
 
@@ -59,6 +73,7 @@ class LifeEngine {
     // Core GOL logic with optional Toroidal wrapping
     computeNextGeneration() {
         let nextGrid = this.createGrid();
+        let nextConsecutive = this.createGrid(); // Track consecutive turns alive
 
         for (let y = 0; y < this.n; y++) {
             for (let x = 0; x < this.n; x++) {
@@ -70,10 +85,13 @@ class LifeEngine {
 
                 if (currentState === 1 && (neighbors === 2 || neighbors === 3)) {
                     nextGrid[y][x] = 1; // Survival
+                    nextConsecutive[y][x] = this.consecutiveAlive[y][x] + 1; // Increment consecutive alive counter, capping it to prevent overflow
                 } else if (currentState === 0 && neighbors === 3) {
                     nextGrid[y][x] = 1; // Birth
+                    nextConsecutive[y][x] = 1; // Freshly born cells start at 1 generation alive
                 } else {
                     nextGrid[y][x] = 0; // Death
+                    nextConsecutive[y][x] = 0; // Dead cells reset their counter to 0
                 }
             }
         }
@@ -88,6 +106,8 @@ class LifeEngine {
         }
 
         this.grid = nextGrid;
+        this.consecutiveAlive = nextConsecutive;
+
         this.iteration++;
         this.currentHash = nextHash;
         this.history.add(nextHash);
@@ -390,6 +410,7 @@ class ArenaEngine {
         const state = (playerNum === 1) ? this.p1State : this.p2State;
         const opponentNum = (playerNum === 1) ? 2 : 1;
         const glyphGrid = glyphEngine.grid;
+        const consecutiveGrid = glyphEngine.consecutiveAlive; // Access the consecutive alive counter
         const n = glyphEngine.n;
 
         state.x = (state.x + state.vx + this.cols) % this.cols;
@@ -397,7 +418,13 @@ class ArenaEngine {
 
         for (let gy = 0; gy < n; gy++) {
             for (let gx = 0; gx < n; gx++) {
+                // Check if cell is alive AND has NOT been static for 3+ consecutive turns
                 if (glyphGrid[gy][gx] === 1) {
+                    const consecutiveTurns = consecutiveGrid[gy][gx];
+                    // THE ANTI-STATOR RULE: If alive for 3+ turns, it stops charging the arena!
+                    if (consecutiveTurns >= 3) {
+                        continue; 
+                    }
                     const ax = ((Math.floor(state.x + gx) % this.cols) + this.cols) % this.cols;
                     const ay = ((Math.floor(state.y + gy) % this.rows) + this.rows) % this.rows;
                     const cell = this.grid[ay][ax];
