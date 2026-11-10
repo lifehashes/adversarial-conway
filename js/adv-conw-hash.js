@@ -10,6 +10,7 @@ class LifeEngine {
         this.n = gridSize;
         this.grid = this.createGrid();
         this.iteration = 0;
+        this.generations = 0;
 
         this.originHash = "";
         this.currentHash = "";
@@ -21,24 +22,37 @@ class LifeEngine {
 
         this.originBinary = null;
         this.containment = true;
+        this.intrusion = false;
 
+        // tracks how many times a cell has been alive consecutively
+        this.consecutiveAlive = this.createGrid(); 
     }
 
     getBinaryString() {
         return this.grid.flat().join('');
     }
 
-    // Initialize an empty 2D array
     createGrid() {
         return Array.from({ length: this.n }, () => Array(this.n).fill(0));
     }
 
     loadFromBinary(binaryString) {
+
+        // Reset and clear both the grid and the consecutive tracker
+        this.grid = this.createGrid();
+        this.consecutiveAlive = this.createGrid();
+
         for (let i = 0; i < binaryString.length; i++) {
             const x = i % this.n;
             const y = Math.floor(i / this.n);
             if (y < this.n) {
-                this.grid[y][x] = parseInt(binaryString[i]);
+                const val = parseInt(binaryString[i]);
+                this.grid[y][x] = val;
+                
+                // Initialize live cells at load time with a count of 1
+                if (val === 1) {
+                    this.consecutiveAlive[y][x] = 1;
+                }
             }
         }
 
@@ -56,41 +70,44 @@ class LifeEngine {
         this.render();
     }
 
-    // The core GOL logic with Toroidal wrapping
+    // Core GOL logic with optional Toroidal wrapping
     computeNextGeneration() {
         let nextGrid = this.createGrid();
+        let nextConsecutive = this.createGrid(); // Track consecutive turns alive
 
         for (let y = 0; y < this.n; y++) {
             for (let x = 0; x < this.n; x++) {
-
-                let neighbors = null;
-                if (this.containment == true){ neighbors = this.countNeighbors(x, y); } else { neighbors = this.countNeighborsUncontained(x, y); }
+                const neighbors = this.containment 
+                    ? this.countNeighbors(x, y) 
+                    : this.countNeighborsUncontained(x, y);
 
                 const currentState = this.grid[y][x];
 
                 if (currentState === 1 && (neighbors === 2 || neighbors === 3)) {
                     nextGrid[y][x] = 1; // Survival
+                    nextConsecutive[y][x] = this.consecutiveAlive[y][x] + 1; // Increment consecutive alive counter, capping it to prevent overflow
                 } else if (currentState === 0 && neighbors === 3) {
                     nextGrid[y][x] = 1; // Birth
+                    nextConsecutive[y][x] = 1; // Freshly born cells start at 1 generation alive
                 } else {
                     nextGrid[y][x] = 0; // Death
+                    nextConsecutive[y][x] = 0; // Dead cells reset their counter to 0
                 }
             }
         }
 
-        // Calculate hash of the potential next state
+        // Calculate hash of potential next state for cycle detection
         const nextBinary = nextGrid.flat().join('');
         const nextHash = sha256(nextBinary);
 
-        // Check if this state has appeared before (Cycle Detection)
         if (this.history.has(nextHash)) {
             this.isActive = false;
-            // console.log(`Unit at ${this.canvas.id} halted: State already exists in history.`);
             return false; 
         }
 
-        // State is unique: Proceed with update
         this.grid = nextGrid;
+        this.consecutiveAlive = nextConsecutive;
+
         this.iteration++;
         this.currentHash = nextHash;
         this.history.add(nextHash);
@@ -102,8 +119,6 @@ class LifeEngine {
         for (let i = -1; i <= 1; i++) {
             for (let j = -1; j <= 1; j++) {
                 if (i === 0 && j === 0) continue;
-                
-                // Torus wrapping logic: (coord + max) % max
                 const nx = (x + j + this.n) % this.n;
                 const ny = (y + i + this.n) % this.n;
                 count += this.grid[ny][nx];
@@ -117,11 +132,8 @@ class LifeEngine {
         for (let i = -1; i <= 1; i++) {
             for (let j = -1; j <= 1; j++) {
                 if (i === 0 && j === 0) continue;
-                
                 const nx = x + j;
                 const ny = y + i;
-                
-                // Fixed Box Border Logic: Check if neighbor coordinate is inside the grid
                 if (nx >= 0 && nx < this.n && ny >= 0 && ny < this.n) {
                     count += this.grid[ny][nx];
                 }
@@ -132,7 +144,7 @@ class LifeEngine {
 
     render() {
         const cellSize = this.canvas.width / this.n;
-        const radius = (cellSize / 2) * 0.8; // 80% of half-cell width for spacing
+        const radius = (cellSize / 2) * 0.8;
         
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         
@@ -140,8 +152,6 @@ class LifeEngine {
             for (let x = 0; x < this.n; x++) {
                 if (this.grid[y][x] === 1) {
                     this.ctx.beginPath();
-                    
-                    // Calculate center point of the cell
                     const centerX = x * cellSize + (cellSize / 2);
                     const centerY = y * cellSize + (cellSize / 2);
                     
@@ -154,7 +164,6 @@ class LifeEngine {
                 }
             }
         }
-        // Reset shadow so it doesn't affect other drawing operations
         this.ctx.shadowBlur = 0;
     }
 
@@ -172,46 +181,172 @@ class LifeEngine {
         this.iteration = 0;
         this.history.clear();
         this.isActive = true;
-        this.loadFromBinary(this.originBinary);
         this.containment = true;
+        this.intrusion = false;
+        
+        // Safe check to avoid 'Cannot read properties of null (reading length)'
+        if (this.originBinary) {
+            this.loadFromBinary(this.originBinary);
+        }
     }
-
 }
 
 class ArenaEngine {
-    constructor(canvasId, width, height, gridSize) {
-        this.canvas = document.getElementById(canvasId);
-        this.ctx = this.canvas.getContext('2d');
+    constructor(containerId, gridSize) {
+        this.container = document.getElementById(containerId);
         
-        // 2. Set the VISUAL size of the canvas
-        this.canvas.width = width;
-        this.canvas.height = height;
+        const width = this.container.clientWidth;
+        const height = this.container.clientHeight;
 
-        // 3. Set the LOGICAL grid dimensions
         this.rows = gridSize;
         this.cols = Math.floor(gridSize * (width / height));
+
+        // Three.js Setup
+        this.scene = new THREE.Scene();
+        this.scene.rotation.order = 'YXZ';
+        this.camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
+        this.renderer = new THREE.WebGLRenderer({ antialias: true });
         
-        // Use a 2D array of objects to store Charge and Owner
-        // charge: 0.0 to 1.0 (magnitude)
-        // owner: 0 (none), 1 (P1), 2 (P2)
+        this.renderer.setSize(width, height);
+        this.container.appendChild(this.renderer.domElement);
+
+        const getRandomInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+        this.camera.position.set(getRandomInt(-50, 50), getRandomInt(-50, 50), getRandomInt(-50, 50));
+
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        this.scene.add(ambientLight);
+        const pointLight = new THREE.PointLight(0xffffff, 0.8);
+        pointLight.position.set(20, 30, 40);
+        this.scene.add(pointLight);     
+
+        // Post-Processing
+        this.composer = new EffectComposer(this.renderer);
+        this.composer.addPass(new RenderPass(this.scene, this.camera));
+
+        const bloomResolution = new THREE.Vector2(width, height);
+        const bloomPass = new UnrealBloomPass(bloomResolution, 2.5, 0.4, 0.7);
+        this.composer.addPass(bloomPass);
+        this.composer.addPass(new OutputPass());
+
+        // Background
+        const textureLoader = new THREE.TextureLoader();
+        textureLoader.load('js/qwantani_night_puresky.jpg', (texture) => {
+            texture.mapping = THREE.EquirectangularReflectionMapping;
+            texture.colorSpace = THREE.SRGBColorSpace;
+            this.scene.background = texture;
+            this.scene.backgroundIntensity = 0.35;
+        });
+
+        // Orbit Controls
+        this.controls = new OrbitControls(this.camera, this.renderer.domElement);
+        this.controls.enableDamping = true;
+        this.controls.dampingFactor = 0.05;
+        this.controls.enablePan = true;
+        this.controls.minDistance = 5;
+        this.controls.maxDistance = 150;
+
+        // Torus Dimensions
+        this.R = 30; // Major radius
+        this.r = 6;  // Minor radius
+
+        // Base Torus Wireframe
+        const torusGeo = new THREE.TorusGeometry(this.R, this.r, 16, 32);
+        const edgeGeo = new THREE.EdgesGeometry(torusGeo);
+        const lineMaterial = new THREE.LineBasicMaterial({
+            color: 0x00ff66,
+            transparent: true,
+            opacity: 0.08,
+            blending: THREE.NormalBlending
+        });
+
+        this.torusWireframe = new THREE.LineSegments(edgeGeo, lineMaterial);
+        this.scene.add(this.torusWireframe);
+
+        // GLYPH HUD INDICATOR BANDS (Wireframe slices representing 16-step span)
+        const glyphWidth = 1;
+        const arcLength = (glyphWidth / this.cols) * Math.PI * 2;
+        const bandGeo = new THREE.CylinderGeometry(
+            this.r * 1.05, 
+            this.r * 1.05, 
+            arcLength * this.R, 
+            16, 1, true
+        );
+        const bandEdgeGeo = new THREE.EdgesGeometry(bandGeo);
+
+        this.p1BandMat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.4, blending: THREE.AdditiveBlending });
+        this.p2BandMat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.4, blending: THREE.AdditiveBlending });
+
+        this.p1IndicatorBand = new THREE.LineSegments(bandEdgeGeo, this.p1BandMat);
+        this.p2IndicatorBand = new THREE.LineSegments(bandEdgeGeo, this.p2BandMat);
+
+        this.scene.add(this.p1IndicatorBand);
+        this.scene.add(this.p2IndicatorBand);
+
+        // Simulation Grid and 3D Nodes
         this.grid = Array.from({ length: this.rows }, () => 
             Array.from({ length: this.cols }, () => ({ 
                 charge: 0, 
                 owner: 0, 
-                justFlipped: 0 // Track frames remaining for the highlight effect
+                justFlipped: 0,
+                chargedAtIter: -1 
             }))
         );
+
+        this.meshGrid = this.create3DGridElements();
         
-        // Kinematics for the "Roaming" Glyphs
-        this.p1State = { x: 0, y: 0, vx: 0, vy: 0 };
-        this.p2State = { x: 0, y: 0, vx: 0, vy: 0 };
+        // Glyph Kinematics
+        this.p1State = { x: 0, y: 0, vx: 0, vy: 0, stance: 'NONE', shield: 0 };
+        this.p2State = { x: 0, y: 0, vx: 0, vy: 0, stance: 'NONE', shield: 0 };
         
         this.iteration = 0;
         this.seed = 0;
         this.mode = 'combative';
+
+        // DECAY FUNCTION
+        this.decayEnabled = true;
     }
 
-    // A fast, seedable 32-bit PRNG
+    onWindowResize() {
+        const width = this.container.clientWidth;
+        const height = this.container.clientHeight;
+
+        this.camera.aspect = width / height;
+        this.camera.updateProjectionMatrix();
+
+        this.renderer.setSize(width, height);
+        this.composer.setSize(width, height);
+    }
+
+    create3DGridElements() {
+        const meshGrid = Array.from({ length: this.rows }, () => Array(this.cols).fill(null));
+        const cellGeo = new THREE.SphereGeometry(0.3, 8, 8); 
+
+        for (let y = 0; y < this.rows; y++) {
+            for (let x = 0; x < this.cols; x++) {
+                const u = (x / this.cols) * Math.PI * 2;
+                const v = (y / this.rows) * Math.PI * 2;
+
+                const posX = (this.R + this.r * Math.cos(v)) * Math.cos(u);
+                const posY = (this.R + this.r * Math.cos(v)) * Math.sin(u);
+                const posZ = this.r * Math.sin(v);
+
+                const cellMat = new THREE.MeshPhongMaterial({
+                    color: 0x000000,
+                    transparent: true,
+                    opacity: 0.0
+                });
+
+                const mesh = new THREE.Mesh(cellGeo, cellMat);
+                mesh.position.set(posX, posY, posZ);
+                
+                this.scene.add(mesh);
+                meshGrid[y][x] = mesh;
+            }
+        }
+        return meshGrid;
+    }
+
     seededRandom() {
         this.seed |= 0; 
         this.seed = this.seed + 0x9e3779b9 | 0;
@@ -225,29 +360,27 @@ class ArenaEngine {
     setSeed(val) {
         this.seed = val;
 
-        // 1. Randomize Vertical Starting Positions (Keep Horizontal at Margins)
-        // We leave a small margin (5 units) from the top/bottom edges
         const verticalMargin = 5;
         const spawnXMargin = 5;
         
         this.p1State.x = spawnXMargin;
         this.p1State.y = verticalMargin + (this.seededRandom() * (this.rows - (verticalMargin * 2)));
+        this.p1State.stance = document.getElementById("spec-mode1").innerText;
+        this.p1State.shield = parseInt(document.getElementById("spec-peak1").innerText);
 
-        this.p2State.x = this.cols - spawnXMargin - 20; // -20 to account for glyph width
+        this.p2State.x = this.cols - spawnXMargin - 20; 
         this.p2State.y = verticalMargin + (this.seededRandom() * (this.rows - (verticalMargin * 2)));
+        this.p2State.stance = document.getElementById("spec-mode2").innerText;
+        this.p2State.shield = parseInt(document.getElementById("spec-peak2").innerText);
 
-        // 2. Randomize Velocities with a "Steer Toward Center" bias
         const baseSpeed = 0.4;
         const variance = 0.3;
 
-        // Player 1: Moving Right (positive vx)
         this.p1State.vx = baseSpeed + (this.seededRandom() * variance);
-        // Player 2: Moving Left (negative vx)
         this.p2State.vx = -(baseSpeed + (this.seededRandom() * variance));
 
-        // Vertical Velocity: Calculate vector toward each other's Y position
         const yDiff = this.p2State.y - this.p1State.y;
-        const steerStrength = 0.01; // Subtle nudge so they don't just fly off-screen immediately
+        const steerStrength = 0.01;
 
         this.p1State.vy = (yDiff * steerStrength) + (this.seededRandom() - 0.5) * variance;
         this.p2State.vy = (-yDiff * steerStrength) + (this.seededRandom() - 0.5) * variance;
@@ -256,7 +389,6 @@ class ArenaEngine {
     applyJitter() {
         const intensity = 0.26; 
         
-        // Use seededRandom() instead of Math.random()
         if (this.seededRandom() < 0.05) {
             this.p1State.vx += (this.seededRandom() - 0.5) * intensity;
             this.p1State.vy += (this.seededRandom() - 0.5) * intensity;
@@ -266,7 +398,6 @@ class ArenaEngine {
             this.p2State.vy += (this.seededRandom() - 0.5) * intensity;
         }
 
-        // Clamp logic remains the same
         const maxV = 0.8;
         this.p1State.vx = Math.max(-maxV, Math.min(maxV, this.p1State.vx));
         this.p1State.vy = Math.max(-maxV, Math.min(maxV, this.p1State.vy));
@@ -274,65 +405,189 @@ class ArenaEngine {
         this.p2State.vy = Math.max(-maxV, Math.min(maxV, this.p2State.vy));
     }
 
-    // This is called every frame to "Stamp" ("project") the current GOL state onto the arena
     stamp(glyphEngine, playerNum) {
         if (!glyphEngine.isActive) return;
         const state = (playerNum === 1) ? this.p1State : this.p2State;
+        const opponentNum = (playerNum === 1) ? 2 : 1;
         const glyphGrid = glyphEngine.grid;
+        const consecutiveGrid = glyphEngine.consecutiveAlive; // Access the consecutive alive counter
         const n = glyphEngine.n;
 
-        // Roam: Update position
         state.x = (state.x + state.vx + this.cols) % this.cols;
         state.y = (state.y + state.vy + this.rows) % this.rows;
 
         for (let gy = 0; gy < n; gy++) {
             for (let gx = 0; gx < n; gx++) {
+                // Check if cell is alive AND has NOT been static for 3+ consecutive turns
                 if (glyphGrid[gy][gx] === 1) {
+                    const consecutiveTurns = consecutiveGrid[gy][gx];
+                    // THE ANTI-STATOR RULE: If alive for 3+ turns, it stops charging the arena!
+                    if (consecutiveTurns >= 3) {
+                        continue; 
+                    }
                     const ax = ((Math.floor(state.x + gx) % this.cols) + this.cols) % this.cols;
                     const ay = ((Math.floor(state.y + gy) % this.rows) + this.rows) % this.rows;
                     const cell = this.grid[ay][ax];
 
-                    const chargePower = 0.1;
+                    // DEFENSIVE restriction: cannot affect opponent cells
+                    if (state.stance === 'DEFENSIVE' && cell.owner === opponentNum) {
+                        continue;
+                    }
+
+                    // Determine charge power based on stance and cell state
+                    let chargePower = 0.1;
+
+                    if (cell.owner === 0 && state.stance === 'DEFENSIVE') {
+                        chargePower = 0.2; // +100% on neutral cells
+                    } else if (cell.owner === opponentNum && state.stance === 'BALANCED') {
+                        chargePower = 0.13; // +30% on opponent cells
+                    }
 
                     if (this.mode === 'combative') {
-                        // COMBATIVE LOGIC: 
-
                         const previousOwner = cell.owner;
+                        const previousCharge = cell.charge;
 
-                        // Player 1 adds to the charge, Player 2 subtracts from it.
                         if (playerNum === 1) {
                             cell.charge += chargePower;
                         } else {
                             cell.charge -= chargePower;
                         }
 
-                        // Clamp the total charge between -1 and 1
                         cell.charge = Math.max(-1.0, Math.min(1.0, cell.charge));
 
-                        // Update ownership based on the sign of the charge
                         if (cell.charge > 0) {
                             cell.owner = 1;
                         } else if (cell.charge < 0) {
                             cell.owner = 2;
                         } else {
-                            cell.owner = 0; // Perfectly neutral
+                            cell.owner = 0;
+                        }
+
+                        if (cell.charge !== previousCharge) {
+                            cell.chargedAtIter = (playerNum === 1) ? unit1.iteration : unit2.iteration;
                         }
 
                         if (previousOwner !== 0 && previousOwner !== cell.owner) {
-                            cell.justFlipped = 8; // Highlighting for 8 frames (~0.5 seconds)
-                        }
-
-                    } else {
-                        // OLD COMPETITIVE LOGIC:
-                        if (cell.owner === 0 || cell.owner === playerNum) {
-                            cell.owner = playerNum;
-                            cell.charge = Math.min(1.0, cell.charge + chargePower);
+                            cell.justFlipped = 8;
                         }
                     }
                 }
             }
         }
+    }
 
+    checkIntrusion(p1Engine, p2Engine) {
+        const p1 = this.p1State;
+        const p2 = this.p2State;
+
+        const peak1 = parseInt(document.getElementById("spec-peak1").innerText);
+        const peak2 = parseInt(document.getElementById("spec-peak2").innerText);
+
+        const p1Width = p1Engine.n, p1Height = p1Engine.n;
+        const p2Width = p2Engine.n, p2Height = p2Engine.n;
+
+        let dx = Math.abs((p1.x + p1Width / 2) - (p2.x + p2Width / 2));
+        let dy = Math.abs((p1.y + p1Height / 2) - (p2.y + p2Height / 2));
+
+        // Bcs the arena is a torus two Glyphs at either
+        // side of the seam are next to each other: measure the short way round
+        dx = Math.min(dx, this.cols - dx);
+        dy = Math.min(dy, this.rows - dy);
+
+        const overlapX = Math.max(0, (p1Width / 2 + p2Width / 2) - dx);
+        const overlapY = Math.max(0, (p1Height / 2 + p2Height / 2) - dy);
+
+        const overlappingCells = Math.floor(overlapX) * Math.floor(overlapY);
+
+        if (overlappingCells > 0) {
+            document.getElementById("spec-shield1").innerText = parseInt(p1.shield / peak1 * 100) + "%";
+            document.getElementById("spec-shield2").innerText = parseInt(p2.shield / peak2 * 100) + "%";
+
+            // Calculate pending damage first to eliminate execution order bias
+            let p1Damage = 0;
+            let p2Damage = 0;
+
+            if (p1.stance === 'OFFENSIVE' && p2Engine.isActive) {
+                const mult = (p2.stance === 'DEFENSIVE') ? 0.02 : 0.1;
+                p2Damage = overlappingCells * mult;
+            }
+
+            if (p2.stance === 'OFFENSIVE' && p1Engine.isActive) {
+                const mult = (p1.stance === 'DEFENSIVE') ? 0.02 : 0.1;
+                p1Damage = overlappingCells * mult;
+            }
+
+            // Apply damage simultaneously
+            if (p2Damage > 0) {
+                p2.shield -= p2Damage;
+                if (p2.shield <= 0) {
+                    p2.shield = 0;
+                    p2Engine.grid = p2Engine.createGrid();
+                    p2Engine.isActive = false;
+                    p2Engine.intrusion = true;
+                }
+            }
+
+            if (p1Damage > 0) {
+                p1.shield -= p1Damage;
+                if (p1.shield <= 0) {
+                    p1.shield = 0;
+                    p1Engine.grid = p1Engine.createGrid();
+                    p1Engine.isActive = false;
+                    p1Engine.intrusion = true;
+                }
+            }
+        }
+    }
+
+    applyChargeDecay(p1Generations, p2Generations, p1Lifespan, p2Lifespan) {
+        if (!this.decayEnabled) return;
+
+        for (let y = 0; y < this.rows; y++) {
+            for (let x = 0; x < this.cols; x++) {
+                const cell = this.grid[y][x];
+
+                // Only decay active charges
+                if (cell.charge === 0 || cell.owner === 0 || cell.chargedAtIter < 0) continue;
+
+                const currentGens = (cell.owner === 1) ? p1Generations : p2Generations;
+                const maxGens = (cell.owner === 1) ? p1Lifespan : p2Lifespan;
+
+                // Decay triggers during the final 100 generations of the Glyph's lifespan
+                const decayStartGen = maxGens - 100;
+
+                // Skip decay if the Glyph hasn't reached its final 100 generations yet
+                if (currentGens < decayStartGen) continue;
+
+                // Offset within the final 100 generations (0–99)
+                const decayOffset = currentGens - decayStartGen;
+                const chargedIter = cell.chargedAtIter;
+
+                let decayProbability = 0;
+
+                // Tier 1: Charges from iter 0–24 decay during 1st quarter of final phase
+                if (chargedIter >= 0 && chargedIter <= 24 && decayOffset >= 0 && decayOffset <= 24) {
+                    decayProbability = 0.2;
+                }
+                // Tier 2: Charges from iter 25–49 decay during 2nd quarter
+                if (chargedIter >= 25 && chargedIter <= 49 && decayOffset >= 25 && decayOffset <= 49) {
+                    decayProbability = 0.4;
+                }
+                // Tier 3: Charges from iter 50–74 decay during 3rd quarter
+                if (chargedIter >= 50 && chargedIter <= 74 && decayOffset >= 50 && decayOffset <= 74) {
+                    decayProbability = 0.6;
+                }
+                // Tier 4: Charges from iter 75–99 decay during 4th quarter
+                if (chargedIter >= 75 && chargedIter <= 99 && decayOffset >= 75 && decayOffset <= 99) {
+                    decayProbability = 0.8;
+                }
+
+                // Apply decay based on probability per iteration
+                if (decayProbability > 0 && this.seededRandom() < decayProbability) {
+                    cell.charge = 0;
+                }
+            }
+        }
     }
 
     calculateScore() {
@@ -342,190 +597,178 @@ class ArenaEngine {
         for (let y = 0; y < this.rows; y++) {
             for (let x = 0; x < this.cols; x++) {
                 const cell = this.grid[y][x];
-                // Rule: Charge must be >= 0.5 to count as a point
                 if (Math.abs(cell.charge) >= 0.5) {
                     if (cell.owner === 1) scoreP1++;
                     else if (cell.owner === 2) scoreP2++;
                 }
-            }
-        }
-
-        return { p1: scoreP1, p2: scoreP2 };
-    }
-
-    // arena cells lose their charge over time (currently not in use)
-    applyDecay() {
-        for (let y = 0; y < this.rows; y++) {
-            for (let x = 0; x < this.cols; x++) {
-                const cell = this.grid[y][x];
-                if (cell.charge > 0) {
-                    cell.charge -= 0.005; // Very slow fade
-                    if (cell.charge <= 0) {
-                        cell.charge = 0;
-                        cell.owner = 0;
-                    }
+                if (cell.justFlipped > 0) {
+                    if (cell.owner === 1) scoreP2 -= 10;
+                    if (cell.owner === 2) scoreP1 -= 10;
                 }
             }
         }
+
+        return { 
+            p1: Math.max(0, scoreP1), 
+            p2: Math.max(0, scoreP2) 
+        };
+    }
+
+    updateIndicatorBand(bandMesh, state) {
+        // If vx > 0 (moving right), leading edge is at state.x + 15
+        // If vx < 0 (moving left), leading edge is at state.x
+        const offset = state.vx >= 0 ? 15 : 0;
+        const centerColumn = state.x + offset;
+        
+        const u = (centerColumn / this.cols) * Math.PI * 2;
+
+        const posX = this.R * Math.cos(u);
+        const posY = this.R * Math.sin(u);
+
+        bandMesh.position.set(posX, posY, 0);
+        bandMesh.rotation.set(0, 0, 0);
+        bandMesh.rotation.z = u;
+        bandMesh.rotateY(Math.PI / 2);
     }
 
     render(color1, color2) {
-        const cellSize = this.canvas.width / this.cols;
-        const radius = (cellSize / 2) * 0.9; // 90% of half-cell width for a crisp look
-        
-        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        const threeColor1 = new THREE.Color(color1);
+        const threeColor2 = new THREE.Color(color2);
 
+        // Update wireframe bands positioning & colors
+        this.p1BandMat.color.copy(threeColor1);
+        this.p2BandMat.color.copy(threeColor2);
+
+        this.updateIndicatorBand(this.p1IndicatorBand, this.p1State);
+        this.updateIndicatorBand(this.p2IndicatorBand, this.p2State);
+
+        // Render nodes (Only active / owned cells)
         for (let y = 0; y < this.rows; y++) {
             for (let x = 0; x < this.cols; x++) {
                 const cell = this.grid[y][x];
-                
+                const mesh = this.meshGrid[y][x];
+
                 if (cell.owner !== 0) {
-                    const baseColor = (cell.owner === 1) ? color1 : color2;
+                    mesh.material.color.copy((cell.owner === 1) ? threeColor1 : threeColor2);
+                    mesh.material.opacity = Math.abs(cell.charge);
                     
-                    // Map charge to Opacity/Saturation
-                    this.ctx.globalAlpha = Math.abs(cell.charge); 
-                    this.ctx.fillStyle = baseColor;
-                    
-                    // Add glow for high-charge cells
-                    if (cell.charge > 0.7) {
-                        this.ctx.shadowBlur = 8;
-                        this.ctx.shadowColor = baseColor;
-                    } else {
-                        this.ctx.shadowBlur = 0;
-                    }
-
-                    // Draw the Circle
-                    this.ctx.beginPath();
-                    const centerX = x * cellSize + (cellSize / 2);
-                    const centerY = y * cellSize + (cellSize / 2);
-                    this.ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
-                    this.ctx.fill();
-
-                    // DRAW HIGHLIGHT
                     if (cell.justFlipped > 0) {
-                        this.ctx.globalAlpha = cell.justFlipped / 8; // Fade out highlight
-                        this.ctx.strokeStyle = "#FFFFFF"; // High contrast white
-                        this.ctx.lineWidth = 2;
-                        this.ctx.stroke();
-                        
-                        cell.justFlipped--; // Decay the highlight timer
+                        const flashIntensity = cell.justFlipped / 8;
+                        const boost = flashIntensity * 5.0; 
+                        mesh.material.emissive.setRGB(boost, boost, boost);
+                        const scaleFactor = 1.0 + (flashIntensity * 1.5); 
+                        mesh.scale.set(scaleFactor, scaleFactor, scaleFactor);
+                        cell.justFlipped--; 
+                    } else {
+                        mesh.material.emissive.setRGB(0, 0, 0); 
+                        mesh.scale.set(1, 1, 1);
                     }
-
+                } else {
+                    mesh.material.opacity = 0.0;
+                    mesh.material.emissive.setRGB(0, 0, 0);
+                    mesh.scale.set(1, 1, 1);
                 }
             }
         }
-        // Reset global state for the next frame
-        this.ctx.globalAlpha = 1.0;
-        this.ctx.shadowBlur = 0;
+
+        this.scene.rotation.y += 0.001;
+        if (this.controls) {
+            this.controls.update();
+        }
+        this.composer.render();
     }
 
     reset() {
-        // Clear the grid state back to neutral
         for (let y = 0; y < this.rows; y++) {
             for (let x = 0; x < this.cols; x++) {
                 this.grid[y][x] = { charge: 0, owner: 0, justFlipped: 0 };
+                
+                if (this.meshGrid && this.meshGrid[y][x]) {
+                    this.meshGrid[y][x].material.opacity = 0.0;
+                    this.meshGrid[y][x].scale.set(1, 1, 1);
+                }
             }
         }
-        // The positions and velocities will be overwritten by setSeed() in the runDuel call
         this.iteration = 0;
-        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this.scene.rotation.set(0, 0, 0);
     }
-
 }
 
 var sha256 = function sha256(ascii) {
-	function rightRotate(value, amount) {
-		return (value>>>amount) | (value<<(32 - amount));
-	};
-	
-	var mathPow = Math.pow;
-	var maxWord = mathPow(2, 32);
-	var lengthProperty = 'length'
-	var i, j; // Used as a counter across the whole file
-	var result = ''
+    function rightRotate(value, amount) {
+        return (value >>> amount) | (value << (32 - amount));
+    }
+    
+    var mathPow = Math.pow;
+    var maxWord = mathPow(2, 32);
+    var lengthProperty = 'length';
+    var i, j;
+    var result = '';
 
-	var words = [];
-	var asciiBitLength = ascii[lengthProperty]*8;
-	
-	//* caching results is optional - remove/add slash from front of this line to toggle
-	// Initial hash value: first 32 bits of the fractional parts of the square roots of the first 8 primes
-	// (we actually calculate the first 64, but extra values are just ignored)
-	var hash = sha256.h = sha256.h || [];
-	// Round constants: first 32 bits of the fractional parts of the cube roots of the first 64 primes
-	var k = sha256.k = sha256.k || [];
-	var primeCounter = k[lengthProperty];
-	/*/
-	var hash = [], k = [];
-	var primeCounter = 0;
-	//*/
+    var words = [];
+    var asciiBitLength = ascii[lengthProperty] * 8;
+    
+    var hash = sha256.h = sha256.h || [];
+    var k = sha256.k = sha256.k || [];
+    var primeCounter = k[lengthProperty];
 
-	var isComposite = {};
-	for (var candidate = 2; primeCounter < 64; candidate++) {
-		if (!isComposite[candidate]) {
-			for (i = 0; i < 313; i += candidate) {
-				isComposite[i] = candidate;
-			}
-			hash[primeCounter] = (mathPow(candidate, .5)*maxWord)|0;
-			k[primeCounter++] = (mathPow(candidate, 1/3)*maxWord)|0;
-		}
-	}
-	
-	ascii += '\x80' // Append Ƈ' bit (plus zero padding)
-	while (ascii[lengthProperty]%64 - 56) ascii += '\x00' // More zero padding
-	for (i = 0; i < ascii[lengthProperty]; i++) {
-		j = ascii.charCodeAt(i);
-		if (j>>8) return; // ASCII check: only accept characters in range 0-255
-		words[i>>2] |= j << ((3 - i)%4)*8;
-	}
-	words[words[lengthProperty]] = ((asciiBitLength/maxWord)|0);
-	words[words[lengthProperty]] = (asciiBitLength)
-	
-	// process each chunk
-	for (j = 0; j < words[lengthProperty];) {
-		var w = words.slice(j, j += 16); // The message is expanded into 64 words as part of the iteration
-		var oldHash = hash;
-		// This is now the undefinedworking hash", often labelled as variables a...g
-		// (we have to truncate as well, otherwise extra entries at the end accumulate
-		hash = hash.slice(0, 8);
-		
-		for (i = 0; i < 64; i++) {
-			var i2 = i + j;
-			// Expand the message into 64 words
-			// Used below if 
-			var w15 = w[i - 15], w2 = w[i - 2];
-
-			// Iterate
-			var a = hash[0], e = hash[4];
-			var temp1 = hash[7]
-				+ (rightRotate(e, 6) ^ rightRotate(e, 11) ^ rightRotate(e, 25)) // S1
-				+ ((e&hash[5])^((~e)&hash[6])) // ch
-				+ k[i]
-				// Expand the message schedule if needed
-				+ (w[i] = (i < 16) ? w[i] : (
-						w[i - 16]
-						+ (rightRotate(w15, 7) ^ rightRotate(w15, 18) ^ (w15>>>3)) // s0
-						+ w[i - 7]
-						+ (rightRotate(w2, 17) ^ rightRotate(w2, 19) ^ (w2>>>10)) // s1
-					)|0
-				);
-			// This is only used once, so *could* be moved below, but it only saves 4 bytes and makes things unreadble
-			var temp2 = (rightRotate(a, 2) ^ rightRotate(a, 13) ^ rightRotate(a, 22)) // S0
-				+ ((a&hash[1])^(a&hash[2])^(hash[1]&hash[2])); // maj
-			
-			hash = [(temp1 + temp2)|0].concat(hash); // We don't bother trimming off the extra ones, they're harmless as long as we're truncating when we do the slice()
-			hash[4] = (hash[4] + temp1)|0;
-		}
-		
-		for (i = 0; i < 8; i++) {
-			hash[i] = (hash[i] + oldHash[i])|0;
-		}
-	}
-	
-	for (i = 0; i < 8; i++) {
-		for (j = 3; j + 1; j--) {
-			var b = (hash[i]>>(j*8))&255;
-			result += ((b < 16) ? 0 : '') + b.toString(16);
-		}
-	}
-	return result;
+    var isComposite = {};
+    for (var candidate = 2; primeCounter < 64; candidate++) {
+        if (!isComposite[candidate]) {
+            for (i = 0; i < 313; i += candidate) {
+                isComposite[i] = candidate;
+            }
+            hash[primeCounter] = (mathPow(candidate, .5) * maxWord) | 0;
+            k[primeCounter++] = (mathPow(candidate, 1/3) * maxWord) | 0;
+        }
+    }
+    
+    ascii += '\x80';
+    while (ascii[lengthProperty] % 64 - 56) ascii += '\x00';
+    for (i = 0; i < ascii[lengthProperty]; i++) {
+        j = ascii.charCodeAt(i);
+        if (j >> 8) return;
+        words[i >> 2] |= j << ((3 - i) % 4) * 8;
+    }
+    words[words[lengthProperty]] = ((asciiBitLength / maxWord) | 0);
+    words[words[lengthProperty]] = (asciiBitLength);
+    
+    for (j = 0; j < words[lengthProperty];) {
+        var w = words.slice(j, j += 16);
+        var oldHash = hash;
+        hash = hash.slice(0, 8);
+        
+        for (i = 0; i < 64; i++) {
+            var w15 = w[i - 15], w2 = w[i - 2];
+            var a = hash[0], e = hash[4];
+            var temp1 = hash[7]
+                + (rightRotate(e, 6) ^ rightRotate(e, 11) ^ rightRotate(e, 25))
+                + ((e & hash[5]) ^ ((~e) & hash[6]))
+                + k[i]
+                + (w[i] = (i < 16) ? w[i] : (
+                        w[i - 16]
+                        + (rightRotate(w15, 7) ^ rightRotate(w15, 18) ^ (w15 >>> 3))
+                        + w[i - 7]
+                        + (rightRotate(w2, 17) ^ rightRotate(w2, 19) ^ (w2 >>> 10))
+                    ) | 0
+                );
+            var temp2 = (rightRotate(a, 2) ^ rightRotate(a, 13) ^ rightRotate(a, 22))
+                + ((a & hash[1]) ^ (a & hash[2]) ^ (hash[1] & hash[2]));
+            
+            hash = [(temp1 + temp2) | 0].concat(hash);
+            hash[4] = (hash[4] + temp1) | 0;
+        }
+        
+        for (i = 0; i < 8; i++) {
+            hash[i] = (hash[i] + oldHash[i]) | 0;
+        }
+    }
+    
+    for (i = 0; i < 8; i++) {
+        for (j = 3; j + 1; j--) {
+            var b = (hash[i] >> (j * 8)) & 255;
+            result += ((b < 16) ? 0 : '') + b.toString(16);
+        }
+    }
+    return result;
 };

@@ -11,7 +11,7 @@ class Match{
 
         this.frameDelay = frameDelay;
 
-        this.algorithm = "Adversarial Conway";
+        this.algorithm = "Adversarial Conway 2.0";
         this.mode = "Combative"
 
         this.tournamentId = tournamentId;
@@ -42,15 +42,18 @@ class Match{
 
             const executeRound = () => {
 
+                document.getElementById("canvasA").innerHTML = "";
                 const arenaGridSize = 96; 
-                arena = new ArenaEngine("canvasA", 600, 300, arenaGridSize); 
+                arena = new ArenaEngine("canvasA", arenaGridSize); 
+                window.addEventListener('resize', () => {
+                    arena.onWindowResize();
+                });
 
                 this.repeatValue = Math.floor(Math.random() * 1000000); 
                 if (this.externalSeed != null){ 
                     this.repeatValue = this.externalSeed; // if an external seed (e.g. from NIST) is provided, overwrite the local seed
                     console.log("[matches.js] Match{}.run(): No external seed provided, using local RNG " + this.repeatValue); 
-                }
-                
+                }                
                 
                 arena.setSeed(this.repeatValue);
                 document.getElementById("round-seed").innerText = this.repeatValue;
@@ -60,6 +63,9 @@ class Match{
 
                 document.getElementById("iteration1").style.color = "#ffffff";
                 document.getElementById("iteration2").style.color = "#ffffff";
+
+                document.getElementById(`spec-shield1`).innerText = "100%";
+                document.getElementById(`spec-shield2`).innerText = "100%";
 
                 //  Estimate spatial and temporal envelope of the match to initialize analytics
                 maxMatchLength = Math.max(this.glyphA.gen, this.glyphB.gen);
@@ -138,6 +144,9 @@ class Match{
                     arena.stamp(unit1, 1);
                     arena.stamp(unit2, 2);
 
+                    arena.checkIntrusion(unit1, unit2);
+                    arena.applyChargeDecay(unit1.iteration, unit2.iteration, this.glyphA.gen, this.glyphB.gen);
+
                     // 3. Render the individual Glyphs
                     unit1.render();
                     unit2.render();
@@ -199,29 +208,49 @@ class Match{
         document.getElementById("owner1").innerText = this.glyphA.owner;
         document.getElementById("spec-gen1").innerText = this.glyphA.gen;
         document.getElementById("spec-peak1").innerText = this.glyphA.peak;
+        document.getElementById("spec-shield1").innerText = "100%";
         document.getElementById("spec-max1").innerText = this.glyphA.max;
         document.getElementById("spec-min1").innerText = this.glyphA.min;
+        document.getElementById("spec-mode1").innerText = this.glyphA.mode;
         document.getElementById("originHash1").innerText = "0x" + this.glyphA.originHash.substring(0, 16) + "...";
 
         document.getElementById("name2").innerText = this.glyphB.name;
         document.getElementById("owner2").innerText = this.glyphB.owner;
         document.getElementById("spec-gen2").innerText = this.glyphB.gen;
         document.getElementById("spec-peak2").innerText = this.glyphB.peak;
+        document.getElementById("spec-shield2").innerText = "100%";
         document.getElementById("spec-max2").innerText = this.glyphB.max;
         document.getElementById("spec-min2").innerText = this.glyphB.min;
+        document.getElementById("spec-mode2").innerText = this.glyphB.mode;
         document.getElementById("originHash2").innerText = "0x" + this.glyphB.originHash.substring(0, 16) + "...";
 
     }
 
     updateUI(){
 
-        // If containment is false, 'failure' class is added. If true, it's removed.
-        document.getElementById('canvas1').classList.toggle('failure', !unit1.containment); 
-        document.getElementById('canvas2').classList.toggle('failure', !unit2.containment);
-        document.getElementById('log1').innerText = unit1.containment ? "" : "!!CONT.FAIL!!";
-        document.getElementById('log2').innerText = unit2.containment ? "" : "!!CONT.FAIL!!";
+        // Apply 'failure' CSS class if either containment fails OR intrusion occurs
+        document.getElementById('canvas1').classList.toggle('failure', !unit1.containment || unit1.intrusion); 
+        document.getElementById('canvas2').classList.toggle('failure', !unit2.containment || unit2.intrusion);
 
+        // Determine status log message for Player 1
+        let logMessage1 = "";
+        if (unit1.intrusion) {
+            logMessage1 = "!!INTRUSION!!";
+        } else if (!unit1.containment) {
+            logMessage1 = "!!CONT.FAIL!!";
+        }
+        document.getElementById('log1').innerText = logMessage1;
 
+        // Determine status log message for Player 2
+        let logMessage2 = "";
+        if (unit2.intrusion) {
+            logMessage2 = "!!INTRUSION!!";
+        } else if (!unit2.containment) {
+            logMessage2 = "!!CONT.FAIL!!";
+        }
+        document.getElementById('log2').innerText = logMessage2;
+
+        // Remaining iteration, hash, and status UI updates
         document.getElementById('iteration1').innerText = unit1.iteration;
         document.getElementById('currentHash1').innerText = "0x" + unit1.currentHash.substring(0, 16) + "...";
 

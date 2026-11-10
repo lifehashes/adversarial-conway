@@ -11,7 +11,7 @@ body {
     color: var(--text-main);
     font-family: 'Calibri', sans-serif;
     margin: 0;
-    padding: 20px;
+    padding: 10px;
     display: flex;
     justify-content: center;
 }
@@ -19,7 +19,7 @@ body {
 /* The Main Encompassing Frame */
 .outer-frame {
     border: 1px solid var(--frame-grey);
-    padding: 10px 15px;
+    padding: 5px 5px;
     width: 98vw;    /* Use more screen width */
     max-width: 1600px;
     background: rgba(0,0,0,0.1);
@@ -32,20 +32,21 @@ body {
     display: flex;
     align-items: flex-start; /* Make boxes equal height */
     gap: 10px;            /* Tighter gap */
-    margin-bottom: 20px;
+    margin-bottom: 5px;
 }
 
 /* Player Box - Indented toward the middle */
 .player-box {
-    flex: 0 0 200px;         /* Slightly narrower to "bunch" more */
+    flex: 0 0 18%;            /* Widened side panels */
     background: var(--panel-bg);
     border: 1px solid rgba(255,255,255,0.1);
     padding: 10px;
     display: flex;
     flex-direction: column;
-    justify-content: flex-start; /* Pushes content to the top */
+    justify-content: flex-start;
     gap: 5px;
     overflow: hidden;
+    box-sizing: border-box;   /* Ensures padding stays inside the 22% width */
 }
 
 /* Specific Indentation: P1 pushes right, P2 pushes left */
@@ -116,14 +117,20 @@ body {
 
 /* Arena remains central */
 .arena-container {
-    flex: 1; 
+    flex: 0 0 62%;            /* Shrunk center arena */
     display: flex;
     flex-direction: column;
+    justify-content: space-between; /* Ensures the graph sits firmly at the bottom */
+    align-self: stretch;           /* Forces the middle column to match side-panel height */
     gap: 5px;
+    box-sizing: border-box;
 }
 
-canvas#canvasA {
+canvas#canvasA,
+div#canvasA {
     width: 100%;
+    flex: 1;                       /* Dynamically fills all remaining vertical space */
+    min-height: 400px;             /* Fallback minimum height */
     background: #000;
     border: 1px solid rgba(255,255,255,0.05);
 }
@@ -203,7 +210,8 @@ canvas#canvasA {
 
 .analytics-tab {
     width: 100%;
-    margin-top: 20px;
+    margin-top: 10px;             /* Reduced top margin slightly for a tighter fit */
+    flex-shrink: 0;                /* Keeps live performance chart fixed size at the bottom */
 }
 
 .analytics-tab canvas {
@@ -233,7 +241,7 @@ canvas#canvasA {
 
 .profile-label {
     font-family: 'Courier New', monospace;
-    font-size: 0.5rem;
+    font-size: calc(0.5rem + 2pt); /* Increased font size by 2pt (~0.65rem) */
     color: var(--frame-grey);
     text-transform: uppercase;
     margin-top: 12px;
@@ -352,6 +360,11 @@ canvas#canvasA {
     color: #000;
     box-shadow: 0 0 25px var(--accent-green);
     transform: scale(1.05);
+}
+
+#tournamentLeaderboard {
+    width: 100% !important;
+    box-sizing: border-box;
 }
 
 /* Position the button at the bottom of the modal content */

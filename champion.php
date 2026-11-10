@@ -222,6 +222,11 @@
 
             animate(0);
 
+            // AUTO-REDIRECT AFTER 60 SECONDS (60000ms)
+            setTimeout(() => {
+                window.location.href = 'https://lifehashes.net/fancy-glyphs/';
+            }, 60000);
+
         };
 
         // --- Game of Life State Logic ---

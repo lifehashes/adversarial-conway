@@ -797,6 +797,7 @@ function resetUI(){
         document.getElementById(`spec-peak${unit}`).innerText = "0";
         document.getElementById(`spec-max${unit}`).innerText = "0";
         document.getElementById(`spec-min${unit}`).innerText = "0";
+        document.getElementById(`spec-shield${unit}`).innerText = "100%";
 
     }
 
